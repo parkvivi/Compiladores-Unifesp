@@ -1,30 +1,41 @@
 # Compiladores-Unifesp
-Trabalhos desenvolvidos na disciplina Compiladores em 2025-2.
+Trabalho desenvolvido na disciplina Compiladores em 2025-2.
 
-1.  [**Lista-Flex**](/Lista-Flex/): Exercícios utilizando flex
-2.  [**Compilador**](/Compilador/): Compilador desenvolvido como trabalho final para a disciplina 
-
-# Compilador
+# Compilador (Até agora...)
 
 Compilador desenvolvido para a linguagem `C-`, conforme especificado por Louden (2004).
 
+## Requisitos
+
+- **Flex** (Gerador de Analisador Léxico)
+- **GCC** (GNU Compiler Collection)
+- **Make** (Ferramenta de Automação)
+
+### Instalando `make` (Windows)
+
+- Utilizando [Chocolatey](https://chocolatey.org/):
+
+  ```powershell
+  choco install winflexbison3 mingw make
+  ```
+- Ou utilize [MSYS2](https://www.msys2.org/) ou [MinGW-w64](https://www.mingw-w64.org/)
+
 ## Analisador Léxico
 
-> _Observação: É necessário ter `Flex` e `GCC` instalados._ 
-
-1. Gerando o código-fonte do analisador léxico com o flex
-```
-flex lexico.l
+* Compilar
+```powershell
+make
 ```
 
-2. Compilando o arquivo gerado
+*  Executar no Windows PowerShell:
+```powershell
+./build/scanner entrada/codigo.txt
 ```
-gcc lex.yy.c -o lexico
-```
+> Observação: `codigo.txt` pode ser substituido por qualquer código teste
 
-3. Executando o analisador com um arquivo de entrada (`codigo.txt`)
-```
-./lexico codigo.txt
+*  Limpar arquivos gerados
+```powershell
+make clean
 ```
 
 ## Referências
