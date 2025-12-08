@@ -10,12 +10,14 @@ Compilador desenvolvido para a linguagem `C-`, conforme especificado por Louden 
 
 ## Analisador Léxico
 
+> Observação: Aqui levando em conta somente o uso do Windows
+
 * Compilar
 ```powershell
 make
 ```
 
-*  Executar no Windows PowerShell:
+*  Executar:
 ```powershell
 .\build\scanner entrada\codigo.txt
 ```
