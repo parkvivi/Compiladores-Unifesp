@@ -1,24 +1,12 @@
-# Compiladores-Unifesp
-Trabalho desenvolvido na disciplina Compiladores em 2025-2.
+# Compilador `C-`
 
-# Compilador (Até agora...)
-
-Compilador desenvolvido para a linguagem `C-`, conforme especificado por Louden (2004).
+Compilador desenvolvido para a linguagem `C-`, conforme especificado por Louden (2004), como trabalho final da disciplina de Compiladores, em 2025-2.
 
 ## Requisitos
 
 - **Flex** (Gerador de Analisador Léxico)
 - **GCC** (GNU Compiler Collection)
 - **Make** (Ferramenta de Automação)
-
-### Instalando `make` (Windows)
-
-- Utilizando [Chocolatey](https://chocolatey.org/):
-
-  ```powershell
-  choco install winflexbison3 mingw make
-  ```
-- Ou utilize [MSYS2](https://www.msys2.org/) ou [MinGW-w64](https://www.mingw-w64.org/)
 
 ## Analisador Léxico
 
@@ -29,7 +17,7 @@ make
 
 *  Executar no Windows PowerShell:
 ```powershell
-./build/scanner entrada/codigo.txt
+.\build\scanner entrada\codigo.txt
 ```
 > Observação: `codigo.txt` pode ser substituido por qualquer código teste
 
