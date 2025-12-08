@@ -12,17 +12,17 @@ Compilador desenvolvido para a linguagem `C-`, conforme especificado por Louden 
 
 > _Observação: É necessário ter `Flex` e `GCC` instalados._ 
 
-**1. Gerando o código-fonte do analisador léxico com o flex**
+1. Gerando o código-fonte do analisador léxico com o flex
 ```
 flex lexico.l
 ```
 
-**2. Compilando o arquivo gerado**
+2. Compilando o arquivo gerado
 ```
 gcc lex.yy.c -o lexico
 ```
 
-**3. Executando o analisador com um arquivo de entrada (codigo.txt)**
+3. Executando o analisador com um arquivo de entrada (`codigo.txt`)
 ```
 ./lexico codigo.txt
 ```

@@ -1,0 +1,14 @@
+int y
+
+y = 2
+
+while(y!=6) {
+    y=y+1
+}
+
+/*
+comentario
+teste
+*/
+
+t = 2 + 300
