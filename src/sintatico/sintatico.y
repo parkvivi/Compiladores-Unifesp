@@ -79,7 +79,7 @@
         return NULL;
     }
 
-    void declararVariavel(const char *nome, TipoVariavel tipo, int tamanhoVetor, int linha_atual) {
+    void declararVariavel(const char *nome, TipoVariavel tipo, int tamanhoVetor) {
         if (!topo_escopo) {
             // huh?
             fprintf(stderr, "ERRO INTERNO: nenhum escopo ativo ao declarar '%s'.\n", nome);
@@ -110,7 +110,7 @@
         topo_escopo->variaveis = v;
     }
 
-    void atribuirValorAVariavel(const char *nome, int valorAtribuido, int indiceVetor, int linha_atual) {
+    void atribuirValorAVariavel(const char *nome, int valorAtribuido, int indiceVetor) {
         Variavel *v = buscarVariavelTodosEscopos(nome);
         if (!v) {
             // Erro de variavel nao declarada
@@ -135,7 +135,7 @@
         v->valor.inteiro = valorAtribuido;
     }
 
-    int buscarValorDeVariavel(const char *nome, int indiceVetor, int linha_atual) {
+    int buscarValorDeVariavel(const char *nome, int indiceVetor) {
         Variavel *v = buscarVariavelTodosEscopos(nome);
         if (!v) {
             // Erro de variavel nao declarada
@@ -353,6 +353,6 @@ int main(int argc, char **argv){
 }
 
 void yyerror(const char* msg) {
-	fprintf(stderr, "ERRO SINTATICO: \"%s\"\n", msg);
+	fprintf(stderr, "ERRO SINTATICO: \"%s\" - LINHA: %d\n", msg, linha_atual);
 	exit(1);
 }
