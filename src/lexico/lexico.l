@@ -7,7 +7,7 @@
 
     #define YY_DECL int yylex()
 
-    // #include "compilador.tab.h"
+    #include "src/build/sintatico.tab.h"
 
     int linha_atual = 1;
     int inicio_comentario = 0;
@@ -25,71 +25,68 @@ NUM {DIGITO}+
 [ \t\r]+            {}
 
 "if"                {
-    printf("<IF> na linha %d\n", linha_atual);
-    //return T_IF;
+    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
+    return T_IF;
 }
 
 "else"              {
-    printf("<ELSE> na linha %d\n", linha_atual);
-    //return T_ELSE;
+    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
+    return T_ELSE;
 }
 
 "while"             {
-    printf("<WHILE> na linha %d\n", linha_atual);
-    //return T_WHILE;
+    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
+    return T_WHILE;
 }
 
 "int"               {
-    printf("<INT> na linha %d\n", linha_atual);
-    //return T_INT_TYPE;
+    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
+    return T_INT_TYPE;
 }
 
 "void"              {
-    printf("<VOID> na linha %d\n", linha_atual);
-    //return T_VOID_TYPE;
+    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
+    return T_VOID_TYPE;
 }
 
 "return"            {
-    printf("<RETURN> na linha %d\n", linha_atual);
-    //return T_RETURN;
+    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
+    return T_RETURN;
 }
 
 {ID}                {
-    /* ... */
-    printf("ID <%s> na linha %d\n", yytext, linha_atual);
+    printf("Linha %d -> IDENTIFICADOR '%s'\n", linha_atual, yytext);
 }
 
 {NUM}               {
-    /* ... */
-    printf("NUM <%s> na linha %d\n", yytext, linha_atual);
+    printf("Linha %d -> NUMERO '%s'\n", linha_atual, yytext);
 }
 
 "+"                 {
-    printf("<'+'> na linha %d\n", linha_atual);
-    //return T_MAIS;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_MAIS;
 }
 
 "-"                 {
-    printf("<'-'> na linha %d\n", linha_atual);
-    //return T_MENOS;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_MENOS;
 }
 
 
 
 "/*"                {
-    printf("Comentario iniciado na linha %d\n", linha_atual);
+    printf("Linha %d -> INICIO DE COMENTARIO\n", linha_atual, yytext);
     inicio_comentario = linha_atual;
     BEGIN(COMENTARIO);
 }
 
 <COMENTARIO>"*/"    {
-    printf("Comentario terminado na linha %d\n", linha_atual);
+    printf("Linha %d -> FIM DE COMENTARIO\n", linha_atual, yytext);
     BEGIN(INITIAL);
 }
 
 <COMENTARIO>\n      {
     linha_atual++;
-    printf("### NOVA LINHA (%d) ###\n", linha_atual);
 }
 
 <COMENTARIO>.       {}
@@ -100,99 +97,98 @@ NUM {DIGITO}+
 }
 
 "*/"                {
-    fprintf(stderr, "ERRO LEXICO: \"%s\" - LINHA: %d\n", yytext, linha_atual);
+    fprintf(stderr, "ERRO LEXICO: \"%s\" - LINHA: %d\n", yytext, linha_atual);  // Semantico?
     exit(1);
 }
 
 
 "*"                 {
-    printf("<'*'> na linha %d\n", linha_atual);
-    //return T_MULT;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_MULT;
 }
 
 "/"                 {
-    printf("<'/'> na linha %d\n", linha_atual);
-    //return T_DIV;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_DIV;
 }
 
 ">="                {
-    printf("<'>='> na linha %d\n", linha_atual);
-    //return T_MAIORIGUAL;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_MAIORIGUAL;
 }
 
 "<="                {
-    printf("<'<='> na linha %d\n", linha_atual);
-    //return T_MENORIGUAL;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_MENORIGUAL;
 }
 
 "=="                {
-    printf("<'=='> na linha %d\n", linha_atual);
-    //return T_IGUAL;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_IGUAL;
 }
 
 "!="                {
-    printf("<'!='> na linha %d\n", linha_atual);
-    //return T_DIFERENTE;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_DIFERENTE;
 }
 
 ">"                 {
-    printf("<'>'> na linha %d\n", linha_atual);
-    //return T_MAIOR;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_MAIOR;
 }
 
 "<"                 {
-    printf("<'<'> na linha %d\n", linha_atual);
-    //return T_MENOR;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_MENOR;
 }
 
 "="                 {
-    printf("<'='> na linha %d\n", linha_atual);
-    //return T_ATRIB;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_ATRIBUICAO;
 }
 
 ";"                 {
-    printf("<';'> na linha %d\n", linha_atual);
-    //return T_PONTOVIRGULA;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_PONTOVIRGULA;
 }
 
 ","                 {
-    printf("<','> na linha %d\n", linha_atual);
-    //return T_VIRGULA;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_VIRGULA;
 }
 
 "("                 {
-    printf("<'('> na linha %d\n", linha_atual);
-    //return T_APAR;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_APAR;
 }
 
 ")"                 {
-    printf("<')'> na linha %d\n", linha_atual);
-    //return T_FPAR;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_FPAR;
 }
 
 "["                 {
-    printf("<'['> na linha %d\n", linha_atual);
-    //return T_ACOLCHETE;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_ACOLCHETE;
 }
 
 "]"                 {
-    printf("<']'> na linha %d\n", linha_atual);
-    //return T_FCOLCHETE;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_FCOLCHETE;
 }
 
 "{"                 {
-    printf("<'{'> na linha %d\n", linha_atual);
-    //return T_ACHAVE;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_ACHAVE;
 }
 
 "}"                 {
-    printf("<'}'> na linha %d\n", linha_atual);
-    //return T_FCHAVE;
+    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
+    return T_FCHAVE;
 }
 
 "\n"                {
     linha_atual++;
-    printf("### NOVA LINHA (%d) ###\n", linha_atual);
 }
 
 .                   {
