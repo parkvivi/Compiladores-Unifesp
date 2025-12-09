@@ -1,37 +1,49 @@
 %{
     #include<stdio.h>
     #include<stdlib.h>
+    #include<string.h>
 
     extern int yylex();
     extern int yyparse();
     extern FILE* yyin;
 
+    extern int linha_atual;
+
     void yyerror(const char* s);
 
+    typedef enum { TipoInteiro, TipoVetor } TipoVariavel;
+
+    /* Escopos e Variaveis */
     typedef struct Variavel {
         char *nome;
-        int   valor;
+        TipoVariavel tipo;
+        int tamanho;
+        union {
+            int inteiro;
+            int *vetor;
+        } valor;
         struct Variavel *prox;
     } Variavel;
 
+    /* REVER ESCOPO :: TEM QUE SER PILHA */
     typedef struct Escopo {
-        Variavel *variaveis;    /* lista encadeada de variáveis deste escopo */
+        Variavel *variaveis;    /* lista encadeada de variaveis deste escopo */
         struct Escopo *prox;    /* escopo imediatamente externo */
     } Escopo;
 
     Escopo *topo_escopo = NULL;
 
-    void entrar_escopo() {
+    void entrarEscopo() { // push
         Escopo *e = (Escopo*) malloc(sizeof(Escopo));
         e->variaveis = NULL;
         e->prox = topo_escopo;
         topo_escopo = e;
     }
 
-    void sair_escopo() {
+    void sairEscopo() { // pop
         if (topo_escopo == NULL) return;
 
-        /* libera as variáveis deste escopo */
+        /* libera as variaveis deste escopo */
         Variavel *v = topo_escopo->variaveis;
         while (v) {
             Variavel *tmp = v;
@@ -42,6 +54,109 @@
         Escopo *tmpE = topo_escopo;
         topo_escopo = topo_escopo->prox;
         free(tmpE);
+    }
+
+    Variavel* buscarVariavelEscopoAtual(const char *nome) {
+        if (!topo_escopo) return NULL;
+        Variavel *v = topo_escopo->variaveis;
+        while (v) {
+            if (strcmp(v->nome, nome) == 0) return v;
+            v = v->prox;
+        }
+        return NULL;
+    }
+
+    Variavel* buscarVariavelTodosEscopos(const char *nome) {
+        Escopo *e = topo_escopo;
+        while (e) {
+            Variavel *v = e->variaveis;
+            while (v) {
+                if (strcmp(v->nome, nome) == 0) return v;
+                v = v->prox;
+            }
+            e = e->prox;
+        }
+        return NULL;
+    }
+
+    void declararVariavel(const char *nome, TipoVariavel tipo, int tamanhoVetor, int linha_atual) {
+        if (!topo_escopo) {
+            // huh?
+            fprintf(stderr, "ERRO INTERNO: nenhum escopo ativo ao declarar '%s'.\n", nome);
+            return;
+        }
+        if (buscarVariavelEscopoAtual(nome) != NULL) {
+            // Erro de variavel duplicada no escopo
+            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+            return;
+        }
+        Variavel *v = (Variavel*) malloc(sizeof(Variavel));
+        v->nome = strdup(nome);
+        v->tipo = tipo;
+
+        // Inicialização e Alocação
+        if (tipo == TipoInteiro) {
+            v->tamanho = 1;
+            v->valor.inteiro = 0; 
+        } else if (tipo == TipoVetor) {
+            v->tamanho = tamanhoVetor;
+            // Inicia todos os campos com 0
+            v->valor.vetor = (int*) calloc(tamanhoVetor, sizeof(int));
+        } else {
+            /* Falta tipo adequado!!! */
+        }
+
+        v->prox = topo_escopo->variaveis;
+        topo_escopo->variaveis = v;
+    }
+
+    void atribuirValorAVariavel(const char *nome, int valorAtribuido, int indiceVetor, int linha_atual) {
+        Variavel *v = buscarVariavelTodosEscopos(nome);
+        if (!v) {
+            // Erro de variavel nao declarada
+            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+            // Sair do programa!!
+            return;
+        }
+
+        // Se é vetor...
+        if (v->tipo == TipoVetor) {
+            if (indiceVetor >= v->tamanho) {
+                // Erro de tentativa de acesso do vetor em campo não existente
+                fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+                // Sair do programa!!
+                return;
+            }
+            v->valor.vetor[indiceVetor] = valorAtribuido;
+            return;
+        }
+
+        // Se é inteiro simples...
+        v->valor.inteiro = valorAtribuido;
+    }
+
+    int buscarValorDeVariavel(const char *nome, int indiceVetor, int linha_atual) {
+        Variavel *v = buscarVariavelTodosEscopos(nome);
+        if (!v) {
+            // Erro de variavel nao declarada
+            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+            // Sair do programa!!
+            return 0;
+        }
+
+        // Se é vetor...
+        if (v->tipo == TipoVetor) {
+            if (indiceVetor >= v->tamanho) {
+                // Erro de tentativa de acesso do vetor em campo não existente
+                fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+                // Sair do programa!!
+                return 0;
+            }
+            return v->valor.vetor[indiceVetor];
+        }
+
+        // Se é inteiro simples...
+        return v->valor.inteiro;
     }
 %}
 
@@ -69,7 +184,7 @@
 %token T_MAIOR          // SIMBOLO '>'
 %token T_MENOR          // SIMBOLO '<'
 %token T_IGUAL          // SIMBOLO '=='
-%token T_DIF            // SIMBOLO '!='
+%token T_DIFERENTE      // SIMBOLO '!='
 %token T_MAIORIGUAL     // SIMBOLO '>='
 %token T_MENORIGUAL     // SIMBOLO '<='
 %token T_VIRGULA        // SIMBOLO ','
@@ -82,80 +197,91 @@
 %token T_ACHAVE         // SIMBOLO '{'
 %token T_FCHAVE         // SIMBOLO '}'
 
+// %left T_MAIS T_MENOS
+// %left T_MULT T_DIV
+
+// %type<...> ...
+
+%start programa
+
 %%
     /* gramatica */
-    programa: lista-declaracoes
+    programa: listaDeclaracoes
 
-    lista-declaracoes:  lista-declaracoes declaracao
+    listaDeclaracoes:  listaDeclaracoes declaracao
                         | declaracao
                         ;
 
-    declaracao: declaracao-variaveis
-                | declaracao-funcao
+    declaracao: declaracaoVariaveis
+                | declaracaoFuncao
                 ;
 
-    declaracao-variaveis:   tipo-especificador T_ID T_PONTOEVIRGULA
-                            | tipo-especificador T_ID T_ACOLCHETE T_NUM T_FCOLCHETE
+    declaracaoVariaveis:   tipoEspecificador T_ID T_PONTOEVIRGULA
+                            | tipoEspecificador T_ID T_ACOLCHETE T_NUM T_FCOLCHETE
                             ;
 
-    tipo-especificador: T_INT
+    tipoEspecificador: T_INT
                         | T_VOID
                         ;
 
-    declaracao-funcao:  tipo-especificador T_ID T_APAR parametros T_FPAR escopo
+    declaracaoFuncao:  tipoEspecificador T_ID T_APAR parametros T_FPAR escopo
                         ;
 
-    parametros: lista-parametros
+    parametros: listaParametros
                 | T_VOID
                 ;
 
-    lista-parametros:   lista-parametros T_VIRGULA parametro
+    listaParametros:   listaParametros T_VIRGULA parametro
                         | parametro
                         ;
 
-    parametro:  tipo-especificador T_ID
-                | tipo-especificador T_ID T_ACOLCHETE T_FCOLCHETE
+    parametro:  tipoEspecificador T_ID
+                | tipoEspecificador T_ID T_ACOLCHETE T_FCOLCHETE
                 ;
 
-    escopo: T_ACHAVE declaracoes-locais lista-escopo T_FCHAVE
+    escopo: T_ACHAVE declaracoesLocais listaEscopo T_FCHAVE
             ;
 
-    declaracoes-locais: declaracoes-locais declaracao-variaveis
+    declaracoesLocais: declaracoesLocais declaracaoVariaveis
                         | 
                         ;
 
-    lista-escopo:   lista-escopo corpo
+    listaEscopo:   listaEscopo corpo
                     |
                     ;
 
-    corpo:  declaracao-expressao
+    corpo:  declaracaoExpressao
             | escopo
-            | declaracao-selecao
-            | declaracao-iteracao
-            | declaracao-retorno
+            | declaracaoSelecao
+            | declaracaoIteracao
+            | declaracaoRetorno
             ;
 
-    declaracao-expressao:   expressao T_PONTOEVIRGULA
+    declaracaoExpressao:   expressao T_PONTOEVIRGULA
                             | T_PONTOEVIRGULA
                             ;
 
-    declaracao-selecao: T_IF T_APAR expressao T_FPAR corpo
+    declaracaoSelecao: T_IF T_APAR expressao T_FPAR corpo
                         | T_IF T_APAR expressao T_FPAR corpo T_ELSE corpo
                         ;
 
-    declaracao-iteracao: T_WHILE T_APAR expressao T_FPAR corpo
+    declaracaoIteracao: T_WHILE T_APAR expressao T_FPAR corpo
 
-    declaracao-retorno: T_RETURN T_PONTOEVIRGULA
+    declaracaoRetorno: T_RETURN T_PONTOEVIRGULA
                         | T_RETURN expressao T_PONTOEVIRGULA
                         ;
 
-    expressao: variavel = expressao | expressao-simples
+    expressao:  variavel T_ATRIBUICAO expressao
+                | expressaoSimples
+                ;
 
     variavel:   T_ID
                 | T_ID T_ACOLCHETE expressao T_FCOLCHETE
                 ;
 
-    expressao-simples: expressao-soma relacional expressao-soma | expressao-soma
+    expressaoSimples:  expressaoSoma relacional expressaoSoma
+                        | expressaoSoma
+                        ;
 
     relacional: T_MENORIGUAL
                 | T_MENOR
@@ -165,7 +291,7 @@
                 | T_DIFERENTE
                 ;
 
-    expressao-soma: expressao-soma soma termo
+    expressaoSoma: expressaoSoma soma termo
                     | termo
                     ;
 
@@ -183,17 +309,17 @@
 
     fator:  T_APAR expressao T_FPAR
             | variavel
-            | chamada-funcao
+            | chamadaFuncao
             | T_NUM
             ;
 
-    chamada-funcao: T_ID T_APAR argumentos T_FPAR ;
+    chamadaFuncao: T_ID T_APAR argumentos T_FPAR ;
 
-    argumentos: lista-argumentos
+    argumentos: listaArgumentos
                 |
                 ;
 
-    lista-argumentos:   lista-argumentos T_VIRGULA expressao
+    listaArgumentos:   listaArgumentos T_VIRGULA expressao
                         | expressao
                         ;
 %%
@@ -221,11 +347,10 @@ int main(int argc, char **argv){
 
     fclose(yyin);
 
-    return 0; // Deu tudo certo
-
+    return 0;
 }
 
-void yyerror(const char* s) {
-	fprintf(stderr, "Parse error: %s\n", s);
+void yyerror(const char* msg) {
+	fprintf(stderr, "ERRO SINTATICO: \"%s\"\n", msg);
 	exit(1);
 }

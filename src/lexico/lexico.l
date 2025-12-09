@@ -7,7 +7,7 @@
 
     #define YY_DECL int yylex()
 
-    #include "src/build/sintatico.tab.h"
+    #include "sintatico.tab.h"
 
     int linha_atual = 1;
     int inicio_comentario = 0;
@@ -41,12 +41,12 @@ NUM {DIGITO}+
 
 "int"               {
     printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
-    return T_INT_TYPE;
+    return T_INT;
 }
 
 "void"              {
     printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
-    return T_VOID_TYPE;
+    return T_VOID;
 }
 
 "return"            {
@@ -56,10 +56,14 @@ NUM {DIGITO}+
 
 {ID}                {
     printf("Linha %d -> IDENTIFICADOR '%s'\n", linha_atual, yytext);
+    yylval.id = strdup(yytext);
+    return T_ID;
 }
 
 {NUM}               {
     printf("Linha %d -> NUMERO '%s'\n", linha_atual, yytext);
+    yylval.ival = atoi(yytext);
+    return T_NUM;
 }
 
 "+"                 {
@@ -75,13 +79,13 @@ NUM {DIGITO}+
 
 
 "/*"                {
-    printf("Linha %d -> INICIO DE COMENTARIO\n", linha_atual, yytext);
+    printf("Linha %d -> INICIO DE COMENTARIO\n", linha_atual);
     inicio_comentario = linha_atual;
     BEGIN(COMENTARIO);
 }
 
 <COMENTARIO>"*/"    {
-    printf("Linha %d -> FIM DE COMENTARIO\n", linha_atual, yytext);
+    printf("Linha %d -> FIM DE COMENTARIO\n", linha_atual);
     BEGIN(INITIAL);
 }
 
@@ -149,7 +153,7 @@ NUM {DIGITO}+
 
 ";"                 {
     printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
-    return T_PONTOVIRGULA;
+    return T_PONTOEVIRGULA;
 }
 
 ","                 {
@@ -198,6 +202,7 @@ NUM {DIGITO}+
 
 %%
 
+#ifdef LEX_STANDALONE
 int main(int argc, char **argv) {
     if (argc > 1) {
         FILE *file = fopen(argv[1], "r");
@@ -216,3 +221,4 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+#endif
