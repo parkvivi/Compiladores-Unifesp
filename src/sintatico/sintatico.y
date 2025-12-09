@@ -165,6 +165,8 @@
     char    *id;
 }
 
+%error-verbose
+
 /* TOKENS */
 %token T_IF             // KW 'if'
 %token T_ELSE           // KW 'else'
