@@ -54,14 +54,11 @@ $(SCANNER): $(LEX_OUTPUT)
 
 $(LEX_OUTPUT): $(LEX_SRC) $(BISON_HEADER)
 	$(MKDIR)
-	$(LEX) $<
-	$(MOVE_LEX)
+	$(LEX) -o$(LEX_OUTPUT) $<
 
 $(BISON_OUTPUT) $(BISON_HEADER): $(BISON_SRC)
 	$(MKDIR)
-	$(BISON) -d $(BISON_SRC)
-	$(MOVE_BISON)
-	$(MOVE_HDR)
+	$(BISON) -d -o $(BISON_OUTPUT) --defines=$(BISON_HEADER) $(BISON_SRC)
 
 clean:
 	$(RM)

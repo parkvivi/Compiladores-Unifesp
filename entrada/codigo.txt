@@ -1,14 +1,7 @@
-int y
+int y;
+int z;
 
-y = 2
-
-while(y!=6) {
-    y=y+1
+void main(void) {
+    y = 2;
+    z = y;
 }
-
-/*
-comentario
-teste
-*/
-
-t = 2 + 300
