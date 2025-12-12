@@ -276,22 +276,22 @@
                                                                         $$ = no;
                                                                         free($2); 
                                                                     }
-                            | tipoEspecificador T_ID T_ACOLCHETE T_NUM T_FCOLCHETE  {
-                                                                                        declararVariavel($2, TipoVetor, $4);
+                            | tipoEspecificador T_ID T_ACOLCHETE T_NUM T_FCOLCHETE T_PONTOEVIRGULA  {
+                                                                                                        declararVariavel($2, TipoVetor, $4);
 
-                                                                                        AST* no = criarNo(TipoDeclaracaoVar, 0);
-                                                                                        AST* var = criarNo(TipoVar, 0);
-                                                                                        var->dado.nome = strdup($2);
+                                                                                                        AST* no = criarNo(TipoDeclaracaoVar, 2);
+                                                                                                        AST* var = criarNo(TipoVar, 0);
+                                                                                                        var->dado.nome = strdup($2);
 
-                                                                                        AST* tamanho = criarNo(TipoNum, 0);
-                                                                                        tamanho->dado.valor = $4;
+                                                                                                        AST* tamanho = criarNo(TipoNum, 0);
+                                                                                                        tamanho->dado.valor = $4;
 
-                                                                                        no->filhos[0] = var;
-                                                                                        no->filhos[1] = tamanho;
+                                                                                                        no->filhos[0] = var;
+                                                                                                        no->filhos[1] = tamanho;
 
-                                                                                        $$ = no;
-                                                                                        free($2); 
-                                                                                    }
+                                                                                                        $$ = no;
+                                                                                                        free($2); 
+                                                                                                    }
                             ;
 
     tipoEspecificador:  T_INT
@@ -342,13 +342,13 @@
             ;
 
     declaracoesLocais:  declaracoesLocais declaracaoVariaveis { $$ = criarNoLista($1, $2); }
-                        |  /* vazio */ { $$ = NULL; }
+                        |   { $$ = NULL; }
                         ;
 
     listaEscopo:    listaEscopo corpo   { 
                                             $$ = criarNoLista($1, $2);
                                         }
-                    | /* vazio */ { $$ = NULL; }
+                    |  { $$ = NULL; }
                     ;
 
     corpo:  declaracaoExpressao { $$ = $1; }

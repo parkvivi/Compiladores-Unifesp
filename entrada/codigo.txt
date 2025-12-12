@@ -1,7 +1,15 @@
 int y;
 int z;
+int x[5];
+
+int oi(int p) {
+    return 1;
+}
 
 void main(void) {
     y = 2;
     z = y;
+    while(y==2) {
+        z = 2;
+    }
 }
