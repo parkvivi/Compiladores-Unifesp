@@ -11,6 +11,30 @@
 
     void yyerror(const char* s);
 
+    /* ================== ESTRUTURAS DA ÁRVORE ================== */
+
+    typedef enum { TipoProgram, TipoDeclaracaoVar, TipoDeclaracaoFunc, TipoLista, TipoParam, TipoBloco, TipoIf, TipoWhile, TipoReturn, TipoAtrib, TipoOperador, TipoVariavel, TipoNum, TipoChamada } TipoNo;
+
+    typedef struct AST {
+        TipoNo tipo;
+        union {
+            char* nome; // nome de funções ou variáveis
+            char operador;
+            int valor;
+        } dado;
+        struct AST** filhos;
+        int num_filhos;
+    } AST;
+
+    /* ================== PROTÓTIPOS DA ÁRVORE ================== */
+    AST* criarNoOperador(char operador, AST* esq, AST* dir);
+    AST* criarNoNum(int valor);
+    AST* criarNoVariavel(char* nome);
+    int percorreAST(AST* no);
+    void liberaAST(AST* no);
+
+    /* ================== TABELA DE SÍMBOLOS COM ESCOPO ================== */
+
     typedef enum { TipoInteiro, TipoVetor } TipoVariavel;
 
     /* Escopos e Variaveis */
@@ -25,7 +49,6 @@
         struct Variavel *prox;
     } Variavel;
 
-    /* REVER ESCOPO :: TEM QUE SER PILHA */
     typedef struct Escopo {
         Variavel *variaveis;    /* lista encadeada de variaveis deste escopo */
         struct Escopo *prox;    /* escopo imediatamente externo */
@@ -48,7 +71,7 @@
         while (v) {
             Variavel *tmp = v;
             v = v->prox;
-            free(tmp->nome);
+            free(tmp->nome); /* verificar se eh vetor para liberar tambem! */
             free(tmp);
         }
         Escopo *tmpE = topo_escopo;
@@ -79,9 +102,10 @@
         return NULL;
     }
 
+    /* Declaração de variável no escopo atual (que está em topo_escopo) */
     void declararVariavel(const char *nome, TipoVariavel tipo, int tamanhoVetor) {
         if (!topo_escopo) {
-            // huh?
+            // Topo_escopo é NULL
             fprintf(stderr, "ERRO INTERNO: nenhum escopo ativo ao declarar '%s'.\n", nome);
             return;
         }
@@ -99,11 +123,11 @@
             v->tamanho = 1;
             v->valor.inteiro = 0; 
         } else if (tipo == TipoVetor) {
-            v->tamanho = tamanhoVetor;
+            v->tamanho = tamanhoVetor; // pq salvar tamanho do vetor?
             // Inicia todos os campos com 0
             v->valor.vetor = (int*) calloc(tamanhoVetor, sizeof(int));
         } else {
-            /* Falta tipo adequado!!! */
+            /* Falta tipo adequado!!! (como assim?) */
         }
 
         v->prox = topo_escopo->variaveis;
@@ -121,7 +145,7 @@
 
         // Se é vetor...
         if (v->tipo == TipoVetor) {
-            if (indiceVetor >= v->tamanho) {
+            if (indiceVetor >= v->tamanho || indiceVetor < 0) { // Sai do programa se indice for negativo!
                 // Erro de tentativa de acesso do vetor em campo não existente
                 fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
                 // Sair do programa!!
@@ -158,11 +182,17 @@
         // Se é inteiro simples...
         return v->valor.inteiro;
     }
+
+    typedef struct {
+        char* nome;
+        int indice;
+    } VariavelAcesso;
 %}
 
 %union {
-    int     ival;
-    char    *id;
+    int                 ival;
+    char                *id;
+    VariavelAcesso*     varAcesso;
 }
 
 %error-verbose
@@ -199,10 +229,13 @@
 %token T_ACHAVE         // SIMBOLO '{'
 %token T_FCHAVE         // SIMBOLO '}'
 
-// %left T_MAIS T_MENOS
-// %left T_MULT T_DIV
+%left T_MAIS T_MENOS
+%left T_MULT T_DIV
 
 // %type<...> ...
+%type <varAcesso> variavel
+%type <ival> expressao expressaoSimples expressaoSoma termo fator
+%type <ival> relacional soma mult
 
 %start programa
 
@@ -218,8 +251,8 @@
                 | declaracaoFuncao
                 ;
 
-    declaracaoVariaveis:   tipoEspecificador T_ID T_PONTOEVIRGULA
-                            | tipoEspecificador T_ID T_ACOLCHETE T_NUM T_FCOLCHETE
+    declaracaoVariaveis:    tipoEspecificador T_ID T_PONTOEVIRGULA { declararVariavel($2, TipoInteiro, 1); /*DEBUG: printf("Declaracao de %s\n", $2);*/ free($2); }
+                            | tipoEspecificador T_ID T_ACOLCHETE T_NUM T_FCOLCHETE { declararVariavel($2, TipoVetor, $4); /*DEBUG: printf("Declaracao de %s\n", $2);*/ free($2); }
                             ;
 
     tipoEspecificador: T_INT
@@ -241,7 +274,7 @@
                 | tipoEspecificador T_ID T_ACOLCHETE T_FCOLCHETE
                 ;
 
-    escopo: T_ACHAVE declaracoesLocais listaEscopo T_FCHAVE
+    escopo: T_ACHAVE { entrarEscopo(); } declaracoesLocais listaEscopo T_FCHAVE { sairEscopo(); }
             ;
 
     declaracoesLocais: declaracoesLocais declaracaoVariaveis
@@ -273,46 +306,80 @@
                         | T_RETURN expressao T_PONTOEVIRGULA
                         ;
 
-    expressao:  variavel T_ATRIBUICAO expressao
-                | expressaoSimples
+    expressao:  variavel T_ATRIBUICAO expressao { atribuirValorAVariavel($1->nome, $3, $1->indice); $$ = $3; }
+                | expressaoSimples { $$ = $1; }
                 ;
 
-    variavel:   T_ID
-                | T_ID T_ACOLCHETE expressao T_FCOLCHETE
+    variavel:   T_ID    { 
+                            VariavelAcesso* v = malloc(sizeof(VariavelAcesso));
+                            v->nome = $1;
+                            v->indice = -1; // Não é vetor
+                            $$ = v;
+                        }
+                | T_ID T_ACOLCHETE expressao T_FCOLCHETE    {
+                                                                VariavelAcesso* v = malloc(sizeof(VariavelAcesso));
+                                                                v->nome = $1;
+                                                                v->indice = $3; // Indice do vetor
+                                                                $$ = v;
+                                                            }
                 ;
 
-    expressaoSimples:  expressaoSoma relacional expressaoSoma
-                        | expressaoSoma
+    expressaoSimples:  expressaoSoma relacional expressaoSoma   { 
+                                                                    switch($2) {
+                                                                        case 1: $$ = ($1 <= $3); break; //ver se retorna 0 ou 1
+                                                                        case 2: $$ = ($1 < $3); break;
+                                                                        case 3: $$ = ($1 > $3); break;
+                                                                        case 4: $$ = ($1 >= $3); break;
+                                                                        case 5: $$ = ($1 == $3); break;
+                                                                        case 6: $$ = ($1 != $3); break;
+                                                                    }
+                                                                }
+                        | expressaoSoma { $$ = $1; }
                         ;
 
-    relacional: T_MENORIGUAL
-                | T_MENOR
-                | T_MAIOR
-                | T_MAIORIGUAL
-                | T_IGUAL
-                | T_DIFERENTE
+    relacional: T_MENORIGUAL { $$ = 1; }
+                | T_MENOR { $$ = 2; }
+                | T_MAIOR { $$ = 3; }
+                | T_MAIORIGUAL { $$ = 4; }
+                | T_IGUAL { $$ = 5; }
+                | T_DIFERENTE { $$ = 6; }
                 ;
 
-    expressaoSoma: expressaoSoma soma termo
-                    | termo
+    expressaoSoma: expressaoSoma soma termo {
+                                                switch($2) {
+                                                    case 1: $$ = $1 + $3; break;
+                                                    case 2: $$ = $1 - $3; break;
+                                                }
+                                            }
+                    | termo { $$ = $1; }
                     ;
 
-    soma:   T_MAIS
-            | T_MENOS
+    soma:   T_MAIS { $$ = 1 }
+            | T_MENOS { $$ = 2 }
             ;
 
-    termo:  termo mult fator
-            | fator
+    termo:  termo mult fator    { 
+                                    switch($2) {
+                                        case 1: $$ = ($1 * $3); break;
+                                        case 2:   if($3 == 0) {
+                                                        fprintf(stderr, "Erro semantico: divisao por 0. Assumindo resultado igual a 0.\n");
+                                                        $$ = 0;
+                                                    } else
+                                                        $$ = ($1 / $3);
+                                                    break;
+                                    }
+                                }
+            | fator { $$ = $1; }
             ;
 
-    mult:   T_MULT
-            | T_DIV
+    mult:   T_MULT { $$ = 1; }
+            | T_DIV { $$ = 2; }
             ;
 
-    fator:  T_APAR expressao T_FPAR
-            | variavel
+    fator:  T_APAR expressao T_FPAR { $$ = $2; }
+            | variavel { $$ = buscarValorDeVariavel($1->nome, $1->indice); }
             | chamadaFuncao
-            | T_NUM
+            | T_NUM { $$ = $1; }
             ;
 
     chamadaFuncao: T_ID T_APAR argumentos T_FPAR ;
@@ -325,6 +392,64 @@
                         | expressao
                         ;
 %%
+
+AST* criarNoOperador(char operador, AST** filhos, int num_filhos) {
+    AST* no = (AST*) malloc(sizeof(AST));
+    no->tipo = TipoOperador;
+    no->dado.operador = operador;
+    no->filhos = filhos;
+    no->num_filhos = num_filhos;
+    return no;
+}
+
+AST* criarNoValor(int valor) {
+    AST* no = (AST*) malloc(sizeof(AST));
+    no->tipo = TipoValor;
+    no->dado.valor = valor;
+    no->filhos = NULL;
+    no->num_filhos = 0;
+    return no;
+}
+
+AST* criarNoID(char* nome) {
+    AST* no = (AST*) malloc(sizeof(AST));
+    no->tipo = TipoID;
+    strcpy(no->dado.nome, nome); //talvez malloc para dado.nome antes?
+    no->filhos = NULL;
+    no->num_filhos = 0;
+    return no;
+}
+
+int percorreAST(AST* no) {
+    if (!no) return 0;
+    if (no->tipo == TipoValor) return no->dado.valor;
+    
+    if(no->num_filhos == 0) return 0;
+
+    int resultado = percorreAST(no->filhos[0]);
+    int i;
+    for(i=1;i<no->num_filhos;i++) {
+        int val = percorreAST(no->filhos[i]);
+        switch (no->dado.operador) {
+            case '+': return resultado + val;
+            case '-': return resultado - val;
+            case '*': return resultado * val;
+            case '/': return (val != 0) ? resultado / val : 0;
+        }
+    }
+
+    return 0;
+}
+
+void liberaAST(AST* no) {
+    if (!no) return;
+    int i;
+    for(i=0;i<no->num_filhos;i++)
+        liberaAST(no->filhos[i]);
+    free(no->filhos);
+    // talvez liberar dado.nome se for ID?
+    free(no);
+}
 
 int main(int argc, char **argv){
     if(argc > 1){
