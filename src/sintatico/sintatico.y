@@ -196,27 +196,27 @@
 %error-verbose
 
 /* TOKENS */
-%token<id> T_IF             // KW 'if'
-%token<id> T_ELSE           // KW 'else'
-%token<id> T_WHILE          // KW 'while'
-%token<id> T_INT            // KW 'int'
-%token<id> T_VOID           // KW 'void'
-%token<id> T_RETURN         // KW 'return'
+%token T_IF             // KW 'if'
+%token T_ELSE           // KW 'else'
+%token T_WHILE          // KW 'while'
+%token T_INT            // KW 'int'
+%token T_VOID           // KW 'void'
+%token T_RETURN         // KW 'return'
 
 %token<id>  T_ID        // identificador
 %token<ival> T_NUM      // numero inteiro
 
-%token<id> T_MAIS           // SIMBOLO '+'
-%token<id> T_MENOS          // SIMBOLO '-'
-%token<id> T_MULT           // SIMBOLO '*'
-%token<id> T_DIV            // SIMBOLO '/'
-%token<id> T_ATRIBUICAO     // SIMBOLO '='
-%token<id> T_MAIOR          // SIMBOLO '>'
-%token<id> T_MENOR          // SIMBOLO '<'
-%token<id> T_IGUAL          // SIMBOLO '=='
-%token<id> T_DIFERENTE      // SIMBOLO '!='
-%token<id> T_MAIORIGUAL     // SIMBOLO '>='
-%token<id> T_MENORIGUAL     // SIMBOLO '<='
+%token T_MAIS           // SIMBOLO '+'
+%token T_MENOS          // SIMBOLO '-'
+%token T_MULT           // SIMBOLO '*'
+%token T_DIV            // SIMBOLO '/'
+%token T_ATRIBUICAO     // SIMBOLO '='
+%token T_MAIOR          // SIMBOLO '>'
+%token T_MENOR          // SIMBOLO '<'
+%token T_IGUAL          // SIMBOLO '=='
+%token T_DIFERENTE      // SIMBOLO '!='
+%token T_MAIORIGUAL     // SIMBOLO '>='
+%token T_MENORIGUAL     // SIMBOLO '<='
 %token T_VIRGULA        // SIMBOLO ','
 %token T_PONTOEVIRGULA  // SIMBOLO ';'
 
@@ -300,8 +300,8 @@
                                                                                                     }
                             ;
 
-    tipoEspecificador:  T_INT { $$ = criarNo(TipoEspecifico); $$->dado.nome = strdup($1); free($1);  }
-                        | T_VOID { $$ = criarNo(TipoEspecifico);  $$->dado.nome = strdup($1); free($1);  }
+    tipoEspecificador:  T_INT { $$ = criarNo(TipoEspecifico); $$->dado.nome = malloc(strlen("int") + 1); strcpy($$->dado.nome, "int");  }
+                        | T_VOID { $$ = criarNo(TipoEspecifico); $$->dado.nome = malloc(strlen("void") + 1); strcpy($$->dado.nome, "void");  }
                         ;
 
     declaracaoFuncao:   tipoEspecificador T_ID T_APAR parametros T_FPAR escopo  {
@@ -320,7 +320,7 @@
                         ;
 
     parametros: listaParametros { $$ = criarNo(TipoParametros); $$->filhos[0] = $1; }
-                | T_VOID { $$ = criarNo(TipoParametros); AST* no = criarNo(TipoEspecifico); no->dado.nome = strdup($1); $$->filhos[0] = no;  }
+                | T_VOID { $$ = criarNo(TipoParametros); AST* no = criarNo(TipoEspecifico); no->dado.nome = malloc(strlen("void") + 1); strcpy(no->dado.nome, "void"); $$->filhos[0] = no;  }
                 ;
 
     listaParametros:    listaParametros T_VIRGULA parametro { $$ = criarNo(TipoListaParametros); $$->filhos[0] = $1; $$->filhos[1] = $3; }
@@ -385,10 +385,10 @@
                                                                                 $$->filhos[0] = $3;
                                                                                 $$->filhos[1] = $5;
                                                                                 AST* no = criarNo(TipoID); // no para ELSE
-                                                                                no->dado.nome = strdup($6);
+                                                                                no->dado.nome = malloc(strlen("else") + 1);
+                                                                                strcpy(no->dado.nome, "else");
                                                                                 $$->filhos[2] = no;
                                                                                 $$->filhos[3] = $7;
-                                                                                free($6);
                                                                             }
                         ;
 
@@ -419,10 +419,10 @@
                                                     $$ = criarNo(TipoExpressao);
                                                     $$->filhos[0] = $1;
                                                     AST* no = criarNo(TipoID); // para igual
-                                                    no->dado.nome = strdup($2);
+                                                    no->dado.nome = malloc(strlen("=") + 1);
+                                                    strcpy(no->dado.nome, "=");
                                                     $$->filhos[1] = no;
                                                     $$->filhos[2] = $3;
-                                                    free($2);
                                                 }
                 | expressaoSimples { $$ = criarNo(TipoExpressao); $$->filhos[0] = $1; }
                 ;
@@ -453,12 +453,12 @@
                         | expressaoSoma { $$ = criarNo(TipoExpressaoSimples); $$->filhos[0] = $1; }
                         ;
 
-    relacional: T_MENORIGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); } // TipoRelacional == dado.nome
-                | T_MENOR { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
-                | T_MAIOR { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
-                | T_MAIORIGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
-                | T_IGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
-                | T_DIFERENTE { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
+    relacional: T_MENORIGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = malloc(strlen("<=") + 1); strcpy($$->dado.nome, "<="); } // TipoRelacional == dado.nome
+                | T_MENOR { $$ = criarNo(TipoRelacional); $$->dado.nome = malloc(strlen("<") + 1); strcpy($$->dado.nome, "<"); }
+                | T_MAIOR { $$ = criarNo(TipoRelacional); $$->dado.nome = malloc(strlen(">") + 1); strcpy($$->dado.nome, ">"); }
+                | T_MAIORIGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = malloc(strlen(">=") + 1); strcpy($$->dado.nome, ">="); }
+                | T_IGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = malloc(strlen("==") + 1); strcpy($$->dado.nome, "=="); }
+                | T_DIFERENTE { $$ = criarNo(TipoRelacional); $$->dado.nome = malloc(strlen("!=") + 1); strcpy($$->dado.nome, "!="); }
                 ;
 
     expressaoSoma: expressaoSoma soma termo {
@@ -470,8 +470,8 @@
                     | termo { $$ = criarNo(TipoExpressaoSoma); $$->filhos[0] = $1; }
                     ;
 
-    soma:   T_MAIS { $$ = criarNo(TipoSoma); $$->dado.nome = strdup($1); free($1); } //TipoSoma == dado.nome
-            | T_MENOS { $$ = criarNo(TipoSoma); $$->dado.nome = strdup($1); free($1); }
+    soma:   T_MAIS { $$ = criarNo(TipoSoma); $$->dado.nome = malloc(strlen("+") + 1); strcpy($$->dado.nome, "+"); } //TipoSoma == dado.nome
+            | T_MENOS { $$ = criarNo(TipoSoma); $$->dado.nome = malloc(strlen("-") + 1); strcpy($$->dado.nome, "-"); }
             ;
 
     termo:  termo mult fator    {
@@ -483,8 +483,8 @@
             | fator { $$ = criarNo(TipoTermo); $$->filhos[0] = $1; }
             ;
 
-    mult:   T_MULT { $$ = criarNo(TipoMult); $$->dado.nome = strdup($1); free($1); } //TipoMult == dado.nome
-            | T_DIV { $$ = criarNo(TipoMult); $$->dado.nome = strdup($1); free($1);; }
+    mult:   T_MULT { $$ = criarNo(TipoMult); $$->dado.nome = malloc(strlen("*") + 1); strcpy($$->dado.nome, "*"); } //TipoMult == dado.nome
+            | T_DIV { $$ = criarNo(TipoMult); $$->dado.nome = malloc(strlen("/") + 1); strcpy($$->dado.nome, "/"); }
             ;
 
     fator:  T_APAR expressao T_FPAR { $$ = criarNo(TipoFator); $$->filhos[0] = $2; }
@@ -523,6 +523,7 @@ AST* criarNo(TipoNo tipo) {
 }
 
 const char* nomeTipoNo(AST* no) {
+    static char buffer[50];
     switch (no->tipo) {
         case TipoPrograma:           return "programa";
         case TipoListaDeclaracoes:  return "listaDeclaracoes";
@@ -553,6 +554,8 @@ const char* nomeTipoNo(AST* no) {
         case TipoChamadaFuncao:     return "chamadaFuncao";
         case TipoArgumentos:        return "argumentos";
         case TipoListaArgumentos:   return "listaArgumentos";
+        case TipoCorpo:             return "corpo";
+        case TipoNum:               sprintf(buffer, "%d", no->dado.valor); return buffer;
 
         default:                    return "???";
     }
