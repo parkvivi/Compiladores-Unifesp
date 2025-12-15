@@ -26,8 +26,6 @@
 
     /* ================== PROTÓTIPOS DA ÁRVORE ================== */
     AST* criarNo(TipoNo tipo);
-    AST* criarNoLista(AST* a, AST* b);
-    int resultadoAST(AST* no);
     void liberaAST(AST* no);
 
     /* Protótipo para gerar arquivo .dot */
@@ -73,7 +71,7 @@
         while (v) {
             Variavel *tmp = v;
             v = v->prox;
-            free(tmp->nome); /* verificar se eh vetor para liberar tambem! */
+            free(tmp->nome);
             free(tmp);
         }
         Escopo *tmpE = topo_escopo;
@@ -125,7 +123,7 @@
             v->tamanho = 1;
             v->valor.inteiro = 0; 
         } else if (tipo == TipoVetor) {
-            v->tamanho = tamanhoVetor; // pq salvar tamanho do vetor?
+            v->tamanho = tamanhoVetor;
             // Inicia todos os campos com 0
             v->valor.vetor = (int*) calloc(tamanhoVetor, sizeof(int));
         } else {
