@@ -13,7 +13,7 @@
 
     /* ================== ESTRUTURAS DA ÁRVORE ================== */
 
-    typedef enum { TipoProgram, TipoDeclaracaoVar, TipoDeclaracaoFunc, TipoLista, TipoParam, TipoBloco, TipoIf, TipoWhile, TipoReturn, TipoAtrib, TipoOperador, TipoVar, TipoNum, TipoChamada, TipoAcessoVetor } TipoNo;
+    typedef enum { TipoPrograma, TipoListaDeclaracoes, TipoDeclaracao, TipoDeclaracaoVars, TipoEspecifico, TipoDeclaracaoFunc, TipoParametros, TipoListaParametros, TipoParametro, TipoEscopo, TipoDeclaracaoLocais, TipoListaEscopo, TipoCorpo, TipoDeclaracaoExpressao, TipoDeclaracaoSelecao, TipoDeclaracaoIteracao, TipoDeclaracaoRetorno, TipoExpressao, TipoVar, TipoExpressaoSimples, TipoRelacional, TipoExpressaoSoma, TipoSoma, TipoTermo, TipoMult, TipoFator, TipoChamadaFuncao, TipoArgumentos, TipoListaArgumentos, TipoID, TipoNum } TipoNo;
 
     typedef struct AST {
         TipoNo tipo;
@@ -22,19 +22,18 @@
             char operador;
             int valor;
         } dado;
-        struct AST** filhos;
-        int num_filhos;
+        struct AST* filhos[5];
     } AST;
 
     /* ================== PROTÓTIPOS DA ÁRVORE ================== */
-    AST* criarNo(TipoNo tipo, int num_filhos);
+    AST* criarNo(TipoNo tipo);
     AST* criarNoLista(AST* a, AST* b);
     int resultadoAST(AST* no);
     void liberaAST(AST* no);
 
     /* Protótipo para gerar arquivo .dot */
     void gerarDOT(AST* raiz);
-    const char* nomeTipoNo(TipoNo tipo);
+    const char* nomeTipoNo(AST* no);
     void imprimirNoDOT(AST* no, FILE* file);
 
     /* ================== TABELA DE SÍMBOLOS COM ESCOPO ================== */
@@ -197,27 +196,27 @@
 %error-verbose
 
 /* TOKENS */
-%token T_IF             // KW 'if'
-%token T_ELSE           // KW 'else'
-%token T_WHILE          // KW 'while'
-%token T_INT            // KW 'int'
-%token T_VOID           // KW 'void'
-%token T_RETURN         // KW 'return'
+%token<id> T_IF             // KW 'if'
+%token<id> T_ELSE           // KW 'else'
+%token<id> T_WHILE          // KW 'while'
+%token<id> T_INT            // KW 'int'
+%token<id> T_VOID           // KW 'void'
+%token<id> T_RETURN         // KW 'return'
 
 %token<id>  T_ID        // identificador
 %token<ival> T_NUM      // numero inteiro
 
-%token T_MAIS           // SIMBOLO '+'
-%token T_MENOS          // SIMBOLO '-'
-%token T_MULT           // SIMBOLO '*'
-%token T_DIV            // SIMBOLO '/'
-%token T_ATRIBUICAO     // SIMBOLO '='
-%token T_MAIOR          // SIMBOLO '>'
-%token T_MENOR          // SIMBOLO '<'
-%token T_IGUAL          // SIMBOLO '=='
-%token T_DIFERENTE      // SIMBOLO '!='
-%token T_MAIORIGUAL     // SIMBOLO '>='
-%token T_MENORIGUAL     // SIMBOLO '<='
+%token<id> T_MAIS           // SIMBOLO '+'
+%token<id> T_MENOS          // SIMBOLO '-'
+%token<id> T_MULT           // SIMBOLO '*'
+%token<id> T_DIV            // SIMBOLO '/'
+%token<id> T_ATRIBUICAO     // SIMBOLO '='
+%token<id> T_MAIOR          // SIMBOLO '>'
+%token<id> T_MENOR          // SIMBOLO '<'
+%token<id> T_IGUAL          // SIMBOLO '=='
+%token<id> T_DIFERENTE      // SIMBOLO '!='
+%token<id> T_MAIORIGUAL     // SIMBOLO '>='
+%token<id> T_MENORIGUAL     // SIMBOLO '<='
 %token T_VIRGULA        // SIMBOLO ','
 %token T_PONTOEVIRGULA  // SIMBOLO ';'
 
@@ -232,326 +231,330 @@
 %left T_MULT T_DIV
 
 // %type<...> ...
-%type <no> variavel
-%type <no> expressao expressaoSimples expressaoSoma termo fator
-%type <ival> soma mult relacional
-%type <no> listaDeclaracoes declaracaoSelecao declaracao corpo declaracaoIteracao declaracaoRetorno chamadaFuncao declaracaoExpressao argumentos listaArgumentos
-%type <no> declaracaoFuncao parametros escopo parametro listaParametros declaracoesLocais listaEscopo declaracaoVariaveis
-%type <no> tipoEspecificador
+%type <no> programa listaDeclaracoes declaracao declaracaoVariaveis tipoEspecificador
+%type <no> declaracaoFuncao parametros listaParametros parametro escopo declaracoesLocais
+%type <no> listaEscopo corpo declaracaoExpressao declaracaoSelecao declaracaoIteracao declaracaoRetorno expressao variavel expressaoSimples relacional expressaoSoma soma termo mult fator chamadaFuncao argumentos listaArgumentos
 
 %start programa
 
 %%
     /* gramatica */
-    programa: listaDeclaracoes { gerarDOT($1); }
+    programa: listaDeclaracoes  {
+                                    $$ = criarNo(TipoPrograma);
+                                    $$->filhos[0] = $1;
+                                    gerarDOT($$);
+                                    // gerar quadruplas
+                                    liberaAST($$);
+                                }
 
-    listaDeclaracoes:   listaDeclaracoes declaracao { 
-                                                        if($1 == NULL) {
-                                                            $$ = criarNo(TipoProgram, 1);
-                                                            $$->filhos[0] = $2;
-                                                        } else {
-                                                            int n = $1->num_filhos;
-                                                            $1->num_filhos++;
-                                                            $1->filhos = realloc($1->filhos, $1->num_filhos * sizeof(AST*));
-                                                            $1->filhos[n] = $2;
-                                                            $$ = $1;
-                                                        }
+    listaDeclaracoes:   listaDeclaracoes declaracao {
+                                                        $$ = criarNo(TipoListaDeclaracoes);
+                                                        $$->filhos[0] = $1;
+                                                        $$->filhos[1] = $2;
                                                     }
-                        | declaracao { $$ = criarNo(TipoProgram, 1); $$->filhos[0] = $1; }
+                        | declaracao    {
+                                            $$ = criarNo(TipoListaDeclaracoes);
+                                            $$->filhos[0] = $1;
+                                        }
                         ;
 
-    declaracao: declaracaoVariaveis
-                | declaracaoFuncao
+    declaracao: declaracaoVariaveis {
+                                        $$ = criarNo(TipoDeclaracao);
+                                        $$->filhos[0] = $1;
+                                    }
+                | declaracaoFuncao  {
+                                        $$ = criarNo(TipoDeclaracao);
+                                        $$->filhos[0] = $1;  
+                                    }
                 ;
 
     declaracaoVariaveis:    tipoEspecificador T_ID T_PONTOEVIRGULA  { 
                                                                         declararVariavel($2, TipoInteiro, 1);
 
-                                                                        AST* no = criarNo(TipoDeclaracaoVar, 1);
-                                                                        AST* var = criarNo(TipoVar, 0);
+                                                                        $$ = criarNo(TipoDeclaracaoVars);
+                                                                        $$->filhos[0] = $1;
+
+                                                                        AST* var = criarNo(TipoID);
                                                                         var->dado.nome = strdup($2);
 
-                                                                        no->filhos[0] = var;
+                                                                        $$->filhos[1] = var;
 
-                                                                        $$ = no;
-                                                                        free($2); 
+                                                                        free($2);
                                                                     }
                             | tipoEspecificador T_ID T_ACOLCHETE T_NUM T_FCOLCHETE T_PONTOEVIRGULA  {
                                                                                                         declararVariavel($2, TipoVetor, $4);
 
-                                                                                                        AST* no = criarNo(TipoDeclaracaoVar, 2);
-                                                                                                        AST* var = criarNo(TipoVar, 0);
+                                                                                                        $$ = criarNo(TipoDeclaracaoVars);
+                                                                                                        $$->filhos[0] = $1;
+
+                                                                                                        AST* var = criarNo(TipoID);
                                                                                                         var->dado.nome = strdup($2);
 
-                                                                                                        AST* tamanho = criarNo(TipoNum, 0);
+                                                                                                        AST* tamanho = criarNo(TipoNum);
                                                                                                         tamanho->dado.valor = $4;
 
-                                                                                                        no->filhos[0] = var;
-                                                                                                        no->filhos[1] = tamanho;
+                                                                                                        $$->filhos[1] = var;
+                                                                                                        $$->filhos[2] = tamanho;
 
-                                                                                                        $$ = no;
                                                                                                         free($2); 
                                                                                                     }
                             ;
 
-    tipoEspecificador:  T_INT
-                        | T_VOID
+    tipoEspecificador:  T_INT { $$ = criarNo(TipoEspecifico); $$->dado.nome = strdup($1); free($1);  }
+                        | T_VOID { $$ = criarNo(TipoEspecifico);  $$->dado.nome = strdup($1); free($1);  }
                         ;
 
     declaracaoFuncao:   tipoEspecificador T_ID T_APAR parametros T_FPAR escopo  {
-                                                                                    AST* nomeFunc = criarNo(TipoVar, 0);
-                                                                                    nomeFunc->dado.nome = strdup($2);
+                                                                                    $$ = criarNo(TipoDeclaracaoFunc);
+                                                                                    $$->filhos[0] = $1;
 
-                                                                                    AST* no = criarNo(TipoDeclaracaoFunc, 3);
-                                                                                    no->filhos[0] = nomeFunc;
-                                                                                    no->filhos[1] = $4;
-                                                                                    no->filhos[2] = $6;
-                                                                                    $$ = no;
+                                                                                    AST* nomeFunc = criarNo(TipoID);
+                                                                                    nomeFunc->dado.nome = strdup($2);
+                                                                                    $$->filhos[1] = nomeFunc;
+
+                                                                                    $$->filhos[2] = $4;
+                                                                                    $$->filhos[3] = $6;
+
                                                                                     free($2);
                                                                                 }
                         ;
 
-    parametros: listaParametros { $$ = $1; }
-                | T_VOID { $$ = NULL; }
+    parametros: listaParametros { $$ = criarNo(TipoParametros); $$->filhos[0] = $1; }
+                | T_VOID { $$ = criarNo(TipoParametros); AST* no = criarNo(TipoEspecifico); no->dado.nome = strdup($1); $$->filhos[0] = no;  }
                 ;
 
-    listaParametros:    listaParametros T_VIRGULA parametro { $$ = criarNoLista($1, $3); }
-                        | parametro { $$ = $1; }
+    listaParametros:    listaParametros T_VIRGULA parametro { $$ = criarNo(TipoListaParametros); $$->filhos[0] = $1; $$->filhos[1] = $3; }
+                        | parametro { $$ = criarNo(TipoListaParametros); $$->filhos[0] = $1; }
                         ;
 
     parametro:  tipoEspecificador T_ID  {
-                                            AST* no = criarNo(TipoParam, 0);
+                                            $$ = criarNo(TipoParametro);
+                                            $$->filhos[0] = $1;
+                                            AST* no = criarNo(TipoID);
                                             no->dado.nome = strdup($2);
-                                            $$ = no;
+                                            $$->filhos[1] = no;
                                             free($2);
                                         }
                 | tipoEspecificador T_ID T_ACOLCHETE T_FCOLCHETE    {
-                                                                        AST* no = criarNo(TipoParam, 0);
+                                                                        $$ = criarNo(TipoParametro);
+                                                                        $$->filhos[0] = $1;
+                                                                        AST* no = criarNo(TipoID);
                                                                         no->dado.nome = strdup($2);
-                                                                        $$ = no;
+                                                                        $$->filhos[1] = no;
                                                                         free($2);
                                                                     }
                 ;
 
-    escopo: T_ACHAVE { entrarEscopo(); } declaracoesLocais listaEscopo T_FCHAVE {   sairEscopo(); 
-                                                                                    AST* lista = criarNoLista($3, $4);
-                                                                                    AST* no = criarNo(TipoBloco, 1);
-                                                                                    no->filhos[0] = lista;
-                                                                                    $$ = no;
+    escopo: T_ACHAVE { entrarEscopo(); } declaracoesLocais listaEscopo T_FCHAVE {   sairEscopo();
+                                                                                    $$ = criarNo(TipoEscopo);
+                                                                                    $$->filhos[0] = $3;
+                                                                                    $$->filhos[1] = $4;
                                                                                 }
             ;
 
-    declaracoesLocais:  declaracoesLocais declaracaoVariaveis { $$ = criarNoLista($1, $2); }
+    declaracoesLocais:  declaracoesLocais declaracaoVariaveis { $$ = criarNo(TipoDeclaracaoLocais); $$->filhos[0] = $1; $$->filhos[1] = $2; }
                         |   { $$ = NULL; }
                         ;
 
     listaEscopo:    listaEscopo corpo   { 
-                                            $$ = criarNoLista($1, $2);
+                                            $$ = criarNo(TipoListaEscopo);
+                                            $$->filhos[0] = $1;
+                                            $$->filhos[1] = $2;
                                         }
                     |  { $$ = NULL; }
                     ;
 
-    corpo:  declaracaoExpressao { $$ = $1; }
-            | escopo { $$ = $1; }
-            | declaracaoSelecao { $$ = $1; }
-            | declaracaoIteracao { $$ = $1; }
-            | declaracaoRetorno { $$ = $1; }
+    corpo:  declaracaoExpressao { $$ = criarNo(TipoCorpo); $$->filhos[0] = $1; }
+            | escopo { $$ = criarNo(TipoCorpo); $$->filhos[0] = $1; }
+            | declaracaoSelecao { $$ = criarNo(TipoCorpo); $$->filhos[0] = $1; }
+            | declaracaoIteracao { $$ = criarNo(TipoCorpo); $$->filhos[0] = $1; }
+            | declaracaoRetorno { $$ = criarNo(TipoCorpo); $$->filhos[0] = $1; }
             ;
 
-    declaracaoExpressao:   expressao T_PONTOEVIRGULA { $$ = $1; }
+    declaracaoExpressao:   expressao T_PONTOEVIRGULA { $$ = criarNo(TipoDeclaracaoExpressao); $$->filhos[0] = $1; }
                             | T_PONTOEVIRGULA { $$ = NULL; }
                             ;
 
-    declaracaoSelecao: T_IF T_APAR expressao T_FPAR corpo   {
-                                                                AST* no = criarNo(TipoIf, 2);
-                                                                no->filhos[0] = $3;
-                                                                no->filhos[1] = $5;
-                                                                $$ = no;
+    declaracaoSelecao: T_IF T_APAR expressao T_FPAR corpo   { // TipoDeclaracaoSelecao == IF
+                                                                $$ = criarNo(TipoDeclaracaoSelecao);
+                                                                $$->filhos[0] = $3;
+                                                                $$->filhos[1] = $5;
                                                             }
                         | T_IF T_APAR expressao T_FPAR corpo T_ELSE corpo   {
-                                                                                AST* no = criarNo(TipoIf, 3);
-                                                                                no->filhos[0] = $3;
-                                                                                no->filhos[1] = $5;
-                                                                                no->filhos[2] = $7;
-                                                                                $$ = no;
+                                                                                $$ = criarNo(TipoDeclaracaoSelecao);
+                                                                                $$->filhos[0] = $3;
+                                                                                $$->filhos[1] = $5;
+                                                                                AST* no = criarNo(TipoID); // no para ELSE
+                                                                                no->dado.nome = strdup($6);
+                                                                                $$->filhos[2] = no;
+                                                                                $$->filhos[3] = $7;
+                                                                                free($6);
                                                                             }
                         ;
 
-    declaracaoIteracao: T_WHILE T_APAR expressao T_FPAR corpo   { 
-                                                                    AST* no = criarNo(TipoWhile, 2);
-                                                                    no->filhos[0] = $3;
-                                                                    no->filhos[1] = $5;
-                                                                    $$ = no;
+    declaracaoIteracao: T_WHILE T_APAR expressao T_FPAR corpo   { //DeclaracaoIteracao == WHILE
+                                                                    $$ = criarNo(TipoDeclaracaoIteracao);
+                                                                    $$->filhos[0] = $3;
+                                                                    $$->filhos[1] = $5;
                                                                 }
 
-    declaracaoRetorno: T_RETURN T_PONTOEVIRGULA {
-                                                    AST* no = criarNo(TipoReturn, 0);
-                                                    $$ = no;
+    declaracaoRetorno: T_RETURN T_PONTOEVIRGULA { // DeclaracaoRetorno == return
+                                                    $$ = criarNo(TipoDeclaracaoRetorno);
                                                 }
                         | T_RETURN expressao T_PONTOEVIRGULA    {
-                                                                    AST* no = criarNo(TipoReturn, 1);
-                                                                    no->filhos[0] = $2;
-                                                                    $$ = no;
+                                                                    $$ = criarNo(TipoDeclaracaoRetorno);
+                                                                    $$->filhos[0] = $2;
                                                                 }
                         ;
 
     expressao:  variavel T_ATRIBUICAO expressao {
-                                                    int valor = resultadoAST($3);
+
+                                                    /*int valor = resultadoAST($3);
                                                     if($1->tipo == TipoVar)
                                                         atribuirValorAVariavel($1->dado.nome, valor, -1);
                                                     else if($1->tipo == TipoAcessoVetor && $1->filhos) {
                                                         int indice = resultadoAST($1->filhos[0]);
                                                         atribuirValorAVariavel($1->dado.nome, valor, indice);
-                                                    }
-                                                    AST* no = criarNo(TipoAtrib, 2);
-                                                    no->filhos[0] = $1;
-                                                    no->filhos[1] = $3;
-                                                    $$ = no;
+                                                    } */ // ARRUMAR DEPOIS
+                                                    $$ = criarNo(TipoExpressao);
+                                                    $$->filhos[0] = $1;
+                                                    AST* no = criarNo(TipoID); // para igual
+                                                    no->dado.nome = strdup($2);
+                                                    $$->filhos[1] = no;
+                                                    $$->filhos[2] = $3;
+                                                    free($2);
                                                 }
-                | expressaoSimples { $$ = $1; }
+                | expressaoSimples { $$ = criarNo(TipoExpressao); $$->filhos[0] = $1; }
                 ;
 
     variavel:   T_ID    {
-                            AST* no = criarNo(TipoVar, 0);
+                            $$ = criarNo(TipoVar);
+                            AST* no = criarNo(TipoID);
                             no->dado.nome = strdup($1);
-                            $$ = no;
+                            $$->filhos[0] = no;
+                            free($1);
                         }
                 | T_ID T_ACOLCHETE expressao T_FCOLCHETE    {
-                                                                AST* no = criarNo(TipoAcessoVetor, 1);
+                                                                $$ = criarNo(TipoVar);
+                                                                AST* no = criarNo(TipoID);
                                                                 no->dado.nome = strdup($1);
-                                                                no->filhos[0] = $3; // Indice do vetor vai como filho
-                                                                $$ = no;
+                                                                $$->filhos[0] = no;
+                                                                $$->filhos[1] = $3;
+                                                                free($1);
                                                             }
                 ;
 
     expressaoSimples:  expressaoSoma relacional expressaoSoma   {
-                                                                    char op;
-                                                                    switch($2) {
-                                                                        case 1: op = '<'; break; // '<=' arrumar depois
-                                                                        case 2: op = '<'; break;
-                                                                        case 3: op = '>'; break;
-                                                                        case 4: op = '>'; break; // '>=' arrumar dps
-                                                                        case 5: op = '='; break; // '=' arrumar dps
-                                                                        case 6: op = '!'; break; // '!=' arrumar dps
-                                                                        default: op = ' ';
-                                                                    }
-                                                                    AST* no = criarNo(TipoOperador, 2);
-                                                                    no->dado.operador = op;
-                                                                    no->filhos[0] = $1;
-                                                                    no->filhos[1] = $3;
-                                                                    $$ = no;
+                                                                    $$ = criarNo(TipoExpressaoSimples);
+                                                                    $$->filhos[0] = $1;
+                                                                    $$->filhos[1] = $2;
+                                                                    $$->filhos[2] = $3;
                                                                 }
-                        | expressaoSoma { $$ = $1; }
+                        | expressaoSoma { $$ = criarNo(TipoExpressaoSimples); $$->filhos[0] = $1; }
                         ;
 
-    relacional: T_MENORIGUAL { $$ = 1; }
-                | T_MENOR { $$ = 2; }
-                | T_MAIOR { $$ = 3; }
-                | T_MAIORIGUAL { $$ = 4; }
-                | T_IGUAL { $$ = 5; }
-                | T_DIFERENTE { $$ = 6; }
+    relacional: T_MENORIGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); } // TipoRelacional == dado.nome
+                | T_MENOR { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
+                | T_MAIOR { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
+                | T_MAIORIGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
+                | T_IGUAL { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
+                | T_DIFERENTE { $$ = criarNo(TipoRelacional); $$->dado.nome = strdup($1); free($1); }
                 ;
 
     expressaoSoma: expressaoSoma soma termo {
-                                                char op = ($2 == 1 ? '+' : '-');
-                                                AST* no = criarNo(TipoOperador, 2);
-                                                no->dado.operador = op;
-                                                no->filhos[0] = $1;
-                                                no->filhos[1] = $3;
-                                                $$ = no;
+                                                $$ = criarNo(TipoExpressaoSoma);
+                                                $$->filhos[0] = $1;
+                                                $$->filhos[1] = $2;
+                                                $$->filhos[2] = $3;
                                             }
-                    | termo { $$ = $1; }
+                    | termo { $$ = criarNo(TipoExpressaoSoma); $$->filhos[0] = $1; }
                     ;
 
-    soma:   T_MAIS { $$ = 1 }
-            | T_MENOS { $$ = 2 }
+    soma:   T_MAIS { $$ = criarNo(TipoSoma); $$->dado.nome = strdup($1); free($1); } //TipoSoma == dado.nome
+            | T_MENOS { $$ = criarNo(TipoSoma); $$->dado.nome = strdup($1); free($1); }
             ;
 
     termo:  termo mult fator    {
-                                    char op = ($2 == 1 ? '*' : '/');
-                                    AST* no = criarNo(TipoOperador, 2);
-                                    no->dado.operador = op;
-                                    no->filhos[0] = $1;
-                                    no->filhos[1] = $3;
-                                    $$ = no;
+                                    $$ = criarNo(TipoTermo);
+                                    $$->filhos[0] = $1;
+                                    $$->filhos[1] = $2;
+                                    $$->filhos[2] = $3;
                                 }
-            | fator { $$ = $1; }
+            | fator { $$ = criarNo(TipoTermo); $$->filhos[0] = $1; }
             ;
 
-    mult:   T_MULT { $$ = 1; }
-            | T_DIV { $$ = 2; }
+    mult:   T_MULT { $$ = criarNo(TipoMult); $$->dado.nome = strdup($1); free($1); } //TipoMult == dado.nome
+            | T_DIV { $$ = criarNo(TipoMult); $$->dado.nome = strdup($1); free($1);; }
             ;
 
-    fator:  T_APAR expressao T_FPAR { $$ = $2; }
-            | variavel { $$ = $1; }
-            | chamadaFuncao { $$ = $1; }
-            | T_NUM { AST* no = criarNo(TipoNum, 0); no->dado.valor = $1; $$ = no; }
+    fator:  T_APAR expressao T_FPAR { $$ = criarNo(TipoFator); $$->filhos[0] = $2; }
+            | variavel { $$ = criarNo(TipoFator); $$->filhos[0] = $1; }
+            | chamadaFuncao { $$ = criarNo(TipoFator); $$->filhos[0] = $1; }
+            | T_NUM { $$ = criarNo(TipoFator); AST* no = criarNo(TipoNum); no->dado.valor = $1; $$->filhos[0] = no; }
             ;
 
     chamadaFuncao:  T_ID T_APAR argumentos T_FPAR   {
-                                                        AST* nomeFunc = criarNo(TipoVar, 0);
+                                                        $$ = criarNo(TipoChamadaFuncao);
+                                                        AST* nomeFunc = criarNo(TipoID);
                                                         nomeFunc->dado.nome = strdup($1);
 
-                                                        AST* no = criarNo(TipoChamada, 2);
-                                                        no->filhos[0] = nomeFunc;
-                                                        no->filhos[1] = $3;
-                                                        $$ = no;
+                                                        $$->filhos[0] = nomeFunc;
+                                                        $$->filhos[1] = $3;
+                                                        
                                                         free($1);
                                                     }
                     ;
 
-    argumentos: listaArgumentos { $$ = $1; }
+    argumentos: listaArgumentos { $$ = criarNo(TipoArgumentos); $$->filhos[0] = $1; }
                 |               { $$ = NULL; }
                 ;
 
-    listaArgumentos:    listaArgumentos T_VIRGULA expressao { $$ = criarNoLista($1, $3); }
-                        | expressao { $$ = $1; }
+    listaArgumentos:    listaArgumentos T_VIRGULA expressao { $$ = criarNo(TipoListaArgumentos); $$->filhos[0] = $1; $$->filhos[1] = $3; }
+                        | expressao { $$ = criarNo(TipoListaArgumentos); $$->filhos[0] = $1; }
                         ;
 %%
 
-AST* criarNo(TipoNo tipo, int num_filhos) {
+AST* criarNo(TipoNo tipo) {
     AST* no = malloc(sizeof(AST));
     no->tipo = tipo;
-    no->num_filhos = num_filhos;
-
-    if(num_filhos > 0) 
-        no->filhos = calloc(num_filhos, sizeof(AST*));
-    else
-        no->filhos = NULL;
-    
+    for(int i=0; i<5; i++)
+        no->filhos[i] = NULL;
     return no;
 }
 
-AST* criarNoLista(AST* a, AST* b) {
-    if(!a) {
-        AST* no = criarNo(TipoLista, 1);
-        no->filhos[0] = b;
-        return no;
-    }
+const char* nomeTipoNo(AST* no) {
+    switch (no->tipo) {
+        case TipoPrograma:           return "programa";
+        case TipoListaDeclaracoes:  return "listaDeclaracoes";
+        case TipoDeclaracao:        return "declaracao";
+        case TipoDeclaracaoVars:    return "declaracaoVariaveis";
+        case TipoEspecifico:        return no->dado.nome;
+        case TipoDeclaracaoFunc:    return "declaracaoFuncao";
+        case TipoID:                return no->dado.nome;
+        case TipoParametros:        return "parametros";
+        case TipoListaParametros:   return "listaParametros";
+        case TipoParametro:         return "parametro";
+        case TipoEscopo:            return "escopo";
+        case TipoDeclaracaoLocais:  return "declaracoesLocais";
+        case TipoListaEscopo:       return "listaEscopo";
+        case TipoDeclaracaoExpressao: return "declaracaoExpressao";
+        case TipoDeclaracaoSelecao:     return "if";
+        case TipoDeclaracaoIteracao:    return "while";
+        case TipoDeclaracaoRetorno:     return "return";
+        case TipoExpressao:             return "expressao";
+        case TipoVar:               return "variavel";
+        case TipoExpressaoSimples:  return "expressaoSimples";
+        case TipoRelacional:        return no->dado.nome;
+        case TipoExpressaoSoma:     return "expressaoSoma";
+        case TipoSoma:              return no->dado.nome;
+        case TipoTermo:             return "termo";
+        case TipoMult:              return no->dado.nome;
+        case TipoFator:             return "fator";
+        case TipoChamadaFuncao:     return "chamadaFuncao";
+        case TipoArgumentos:        return "argumentos";
+        case TipoListaArgumentos:   return "listaArgumentos";
 
-    a->num_filhos++;
-    a->filhos = realloc(a->filhos, a->num_filhos * sizeof(AST*));
-    a->filhos[a->num_filhos - 1] = b;
-    return a;
-}
-
-const char* nomeTipoNo(TipoNo tipo) {
-    switch (tipo) {
-        case TipoProgram:         return "Program";
-        case TipoDeclaracaoVar:   return "int";
-        case TipoDeclaracaoFunc:  return "DeclFunc";
-        case TipoLista:           return "Lista";
-        case TipoParam:           return "Parametro";
-        case TipoBloco:           return "Bloco";
-        case TipoIf:              return "If";
-        case TipoWhile:           return "While";
-        case TipoReturn:          return "Return";
-        case TipoAtrib:           return "=";
-        case TipoOperador:        return "Operador";
-        case TipoVar:        return "Variavel";
-        case TipoNum:             return "Numero";
-        case TipoChamada:         return "ChamadaFuncao";
-        default:                  return "???";
+        default:                    return "???";
     }
 }
 
@@ -560,42 +563,17 @@ void imprimirNoDOT(AST* no, FILE* file) {
 
     char nomeDoNo[30];
 
-    switch (no->tipo) {
-        case TipoVar:
-            strcpy(nomeDoNo, no->dado.nome);
-            break;
-        case TipoNum:
-            snprintf(nomeDoNo, 30, "%d", no->dado.valor);
-            break;
-        case TipoOperador:
-            nomeDoNo[0] = no->dado.operador;
-            nomeDoNo[1] = '\0';
-            break;
-        default:
-            strcpy(nomeDoNo, nomeTipoNo(no->tipo));
-            break;
-    }
+    strcpy(nomeDoNo, nomeTipoNo(no));
 
-    for(int i=0; i<no->num_filhos; i++) {
-        if(no->filhos) {
-            AST* filho = no->filhos[i];
-            if(filho) {
-                char nomeFilho[50];
-                switch (filho->tipo) {
-                    case TipoVar: case TipoAcessoVetor:
-                        strcpy(nomeFilho, filho->dado.nome); break;
-                    case TipoNum:
-                        snprintf(nomeFilho, 50, "%d", filho->dado.valor); break;
-                    case TipoOperador:
-                        nomeFilho[0] = filho->dado.operador; nomeFilho[1] = '\0'; break;
-                    default:
-                        strcpy(nomeFilho, nomeTipoNo(filho->tipo));
-                }
-                fprintf(file, "  node%p[label=\"%s\"];\n", (void*)no, nomeDoNo);
-                fprintf(file, "  node%p[label=\"%s\"];\n", (void*)filho, nomeFilho);
-                fprintf(file, "  node%p -> node%p;\n", (void*)no, (void*)filho);
-                imprimirNoDOT(filho, file);
-            }
+    for(int i=0; i<5; i++) {
+        AST* filho = no->filhos[i];
+        if(filho) {
+            char nomeFilho[50];
+            strcpy(nomeFilho, nomeTipoNo(filho));
+            fprintf(file, "  node%p[label=\"%s\"];\n", (void*)no, nomeDoNo);
+            fprintf(file, "  node%p[label=\"%s\"];\n", (void*)filho, nomeFilho);
+            fprintf(file, "  node%p -> node%p;\n", (void*)no, (void*)filho);
+            imprimirNoDOT(filho, file);
         }
     }
 }
@@ -618,7 +596,7 @@ void gerarDOT(AST* raiz) {
     printf("Arquivo arvore.dot gerado com sucesso!\n");
 }
 
-int resultadoAST(AST* no) {
+/*int resultadoAST(AST* no) {
     if (!no) return 0;
 
     if (no->tipo == TipoNum) return no->dado.valor;
@@ -639,15 +617,14 @@ int resultadoAST(AST* no) {
     }
 
     return 0;
-}
+}*/
 
 void liberaAST(AST* no) {
     if (!no) return;
     int i;
-    for(i=0;i<no->num_filhos;i++)
+    for(i=0;i<5;i++)
         liberaAST(no->filhos[i]);
-    free(no->filhos);
-    if (no->tipo == TipoVar || no->tipo == TipoAcessoVetor || no->tipo == TipoParam) free(no->dado.nome);
+    //liberar nomes de variaveis/funcoes
     free(no);
 }
 
