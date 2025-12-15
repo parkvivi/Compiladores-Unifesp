@@ -19,7 +19,6 @@
         TipoNo tipo;
         union {
             char* nome; // nome de funções ou variáveis
-            char operador;
             int valor;
         } dado;
         struct AST* filhos[5];
@@ -268,7 +267,7 @@
                                     }
                 ;
 
-    declaracaoVariaveis:    tipoEspecificador T_ID T_PONTOEVIRGULA  { 
+    declaracaoVariaveis:    tipoEspecificador T_ID T_PONTOEVIRGULA  {
                                                                         declararVariavel($2, TipoInteiro, 1);
 
                                                                         $$ = criarNo(TipoDeclaracaoVars);
@@ -409,13 +408,8 @@
 
     expressao:  variavel T_ATRIBUICAO expressao {
 
-                                                    /*int valor = resultadoAST($3);
-                                                    if($1->tipo == TipoVar)
-                                                        atribuirValorAVariavel($1->dado.nome, valor, -1);
-                                                    else if($1->tipo == TipoAcessoVetor && $1->filhos) {
-                                                        int indice = resultadoAST($1->filhos[0]);
-                                                        atribuirValorAVariavel($1->dado.nome, valor, indice);
-                                                    } */ // ARRUMAR DEPOIS
+                                                    // ARRUMAR ATRIBUIR VALOR A VARIAVEIS DEPOIS (tem q percorrer arvore para resultado da expressao?).
+
                                                     $$ = criarNo(TipoExpressao);
                                                     $$->filhos[0] = $1;
                                                     AST* no = criarNo(TipoID); // para igual
@@ -599,35 +593,12 @@ void gerarDOT(AST* raiz) {
     printf("Arquivo arvore.dot gerado com sucesso!\n");
 }
 
-/*int resultadoAST(AST* no) {
-    if (!no) return 0;
-
-    if (no->tipo == TipoNum) return no->dado.valor;
-    if (no->tipo == TipoVar) return buscarValorDeVariavel(no->dado.nome, -1);
-    if (no->tipo == TipoAcessoVetor) return buscarValorDeVariavel(no->dado.nome, resultadoAST(no->filhos[0])); // ESSE resultadoAST FAZ SENTIDO????
-    
-    if(no->num_filhos == 0) return 0;
-
-    if(no->tipo == TipoOperador) {
-        int left = resultadoAST(no->filhos[0]);
-        int right = resultadoAST(no->filhos[1]);
-        switch (no->dado.operador) {
-            case '+': return left + right;
-            case '-': return left - right;
-            case '*': return left * right;
-            case '/': return (right != 0) ? left / right : 0;
-        }
-    }
-
-    return 0;
-}*/
-
 void liberaAST(AST* no) {
     if (!no) return;
     int i;
     for(i=0;i<5;i++)
         liberaAST(no->filhos[i]);
-    //liberar nomes de variaveis/funcoes
+    if(no->tipo == TipoID || no->tipo == TipoEspecifico || no->tipo == TipoRelacional || no->tipo == TipoSoma || no->tipo == TipoMult) free(no->dado.nome);
     free(no);
 }
 
