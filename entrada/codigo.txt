@@ -1,19 +1,6 @@
-int y;
-int z;
-int x[5];
-
-int oi(int p) {
-    int hj;
-    return 1;
-}
-
 void main(void) {
-    int uuuu;
-    int oi;
-    y = oi();
-    z = y;
-    while(y==2) {
-        int oyy;
-        z = 2;
-    }
+    int y;
+    int x;
+    x = 10;
+    y = (x + 4) + 6;
 }

@@ -24,6 +24,8 @@
         struct AST* filhos[5];
     } AST;
 
+    AST *raizAST = NULL;
+
     /* ================== PROTÓTIPOS DA ÁRVORE ================== */
 
     AST* criarNo(TipoNo tipo);
@@ -33,6 +35,11 @@
     void gerarDOT(AST* raiz);
     const char* nomeTipoNo(AST* no);
     void imprimirNoDOT(AST* no, FILE* file);
+
+    /* geração de código intermediário */
+    int temp_count = 0;
+    int label_count = 0;
+    typedef enum { IR_ADD, IR_MUL, IR_SUB, IR_DIV, IR_ASSIGN, IR_LT, IR_IF, IR_GOTO, IR_LABEL, IR_NULL } IROp;
 
     /* ================== TABELA DE SÍMBOLOS COM ESCOPO ================== */
 
@@ -282,9 +289,7 @@
     programa: listaDeclaracoes  {
                                     $$ = criarNo(TipoPrograma);
                                     $$->filhos[0] = $1;
-                                    gerarDOT($$);
-                                    // gerar quadruplas
-                                    liberaAST($$);
+                                    raizAST = $$;
                                 }
 
     listaDeclaracoes:   listaDeclaracoes declaracao {
@@ -648,30 +653,172 @@ void gerarDOT(AST* raiz) {
     //printf("Arquivo arvore.dot gerado com sucesso!\n");
 }
 
-int gerarCodigoIntermediario(AST* raiz) {
-    int i;
-    AST* filho;
+/* GERACAO DE CODIGO INTERMEDIARIO */
+char* criaVariavelTemporaria() {
+    char *temp = (char*)malloc(16);
+    if (!temp) return NULL;
+    sprintf(temp, "t%d", temp_count++);
+    return temp;
+}
 
-    for (i=0, filho=raiz->filhos[i]; i<5 && filho!=NULL; filho=raiz->filhos[++i]) {
-        switch (filho->tipo) {
-            case TipoExpressaoSimples:
-                // Gerar IR
-                break;
-            case TipoExpressaoSoma:
-                // Gerar IR
-                break;
-            case TipoTermo:
-                // Gerar IR
-                break;
-            case TipoFator:
-                // Gerar IR
-                break;
-            default:
-                break;
+char* criaLabel() {
+    char *label = (char*)malloc(16);
+    if (!label) return NULL;
+    sprintf(label, "L%d", label_count++);
+    return label;
+}
+
+char* op_to_str(IROp op) {
+    switch (op) {
+        case IR_ADD: return "+";
+        case IR_MUL: return "*";
+        case IR_SUB: return "-";
+        case IR_DIV: return "/";
+        case IR_ASSIGN: return "=";
+        case IR_LT: return "<";
+        case IR_IF: return "if";
+        case IR_GOTO: return "goto";
+        case IR_LABEL: return "label";
+        case IR_NULL: return "";
+        default: return "???";
+    }
+}
+
+void emit(IROp op, char* arg1, char* arg2, char* result, FILE *file) {
+    // Exemplo de como gerar uma instrucao intermediaria
+    char *op_str = (op == IR_ASSIGN) ? "" : op_to_str(op);
+    fprintf(file, "%s = ", result);
+    fprintf(file, "%s ", arg1);
+    fprintf(file, "%s ", op_str);
+    fprintf(file, "%s\n", arg2 ? arg2 : "");
+}
+
+char* gerarExpressao(AST* no, FILE *file) {
+    if (!no) return NULL;
+
+    switch (no->tipo) {
+
+        case TipoNum: {
+            char* t = criaVariavelTemporaria();
+            char buf[16];
+            sprintf(buf, "%d", no->dado.valor);
+            emit(IR_ASSIGN, buf, NULL, t, file);  // Atribui o numero a um temporario
+            return t;
+        }
+
+        case TipoID:
+        case TipoVar: {
+            return strdup(no->dado.nome);  // Variaveis ou identificadores
+        }
+
+        case TipoFator: {
+            char* fator = gerarExpressao(no->filhos[0], file); 
+            return fator;
+        }
+
+        case TipoTermo: {
+            char *e1 = gerarExpressao(no->filhos[0], file);
+            char *e2 = gerarExpressao(no->filhos[1], file);
+            char *t = criaVariavelTemporaria();
+            if (no->filhos[1]->tipo == TipoMult && strcmp(no->filhos[1]->dado.nome, "*") == 0) {
+                emit(IR_MUL, e1, e2, t, file);
+            } else {
+                emit(IR_DIV, e1, e2, t, file);
+            }
+            return t;
+        }
+
+        case TipoExpressaoSoma: {
+            char *e1 = gerarExpressao(no->filhos[0], file);
+            char *e2 = gerarExpressao(no->filhos[2], file);
+            char *t = criaVariavelTemporaria();
+            if (no->filhos[1]->tipo == TipoSoma && strcmp(no->filhos[1]->dado.nome, "+") == 0) {
+                emit(IR_ADD, e1, e2, t, file);
+            } else {
+                emit(IR_SUB, e1, e2, t, file);
+            }
+            return t;
+        }
+
+        case TipoExpressao: {
+            char* rhs = gerarExpressao(no->filhos[2], file);
+            char* lhs = no->filhos[0]->dado.nome;
+            emit(IR_ASSIGN, rhs, NULL, lhs, file);
+            return lhs;
+        }
+
+        case TipoExpressaoSimples: {
+            return gerarExpressao(no->filhos[0], file);
+        }
+
+        case TipoRelacional: {
+            char *e1 = gerarExpressao(no->filhos[0], file);
+            char *e2 = gerarExpressao(no->filhos[1], file);
+            char *t = criaVariavelTemporaria();
+            emit(IR_LT, e1, e2, t, file);
+            return t;
+        }
+
+        default:
+            return NULL;
+    }
+}
+
+void gerarDeclaracao(AST* no, FILE *file) {
+    if (!no) return;
+
+    switch (no->tipo) {
+
+        case TipoExpressao: {
+            char* rhs = gerarExpressao(no->filhos[2], file);
+            char* lhs = no->filhos[0]->dado.nome;
+            emit(IR_NULL, rhs, NULL, lhs, file);
+            break;
+        }
+
+
+
+        default:
+            // Para os nós estruturais
+            for (int i = 0; i < 5; i++) {
+                if (no->filhos[i]) {
+                    gerarDeclaracao(no->filhos[i], file);
+                }
+            }
+    }
+}
+
+void gerarCodigoIntermediario(AST* raiz) {
+    if (!raiz) return;
+
+    FILE *file;
+    file = fopen("build/codigoIntermediario.txt", "w");
+    if (file==NULL) {
+        printf("Erro ao abrir arquivo para gerar codigoIntermediario.txt\n");
+        return;
+    }
+
+    gerarDeclaracao(raiz, file);
+
+    fclose(file);
+}
+
+AST* enxugaAST(AST* no) {
+    int i;
+
+    if (!no) return NULL;
+
+    if (no->filhos[0] != NULL && no->filhos[1] == NULL && no->filhos[2] == NULL && no->filhos[3] == NULL && no->filhos[4] == NULL) {
+        AST* temp = no;
+        no = enxugaAST(no->filhos[0]);
+        free(temp);
+    } else {
+        for (i = 0; i < 5; i++) {
+            no->filhos[i] = enxugaAST(no->filhos[i]);
         }
     }
 
-    return -1;
+    return no;
 }
 
 void liberaAST(AST* no) {
@@ -706,6 +853,14 @@ int main(int argc, char **argv){
 
     /* sai do escopo global e libera memória */
     sairEscopo();
+
+    raizAST = enxugaAST(raizAST);
+
+    gerarDOT(raizAST);
+
+    gerarCodigoIntermediario(raizAST);
+
+    liberaAST(raizAST);
 
     fclose(yyin);
 
