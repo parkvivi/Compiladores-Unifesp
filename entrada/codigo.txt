@@ -3,13 +3,17 @@ int z;
 int x[5];
 
 int oi(int p) {
+    int hj;
+    int poo;
     return 1;
 }
 
 void main(void) {
+    int uuuu;
     y = 2;
     z = y;
     while(y==2) {
+        int oyyyy;
         z = 2;
     }
 }

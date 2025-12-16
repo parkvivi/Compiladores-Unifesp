@@ -25,67 +25,55 @@ NUM {DIGITO}+
 [ \t\r]+            {}
 
 "if"                {
-    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
     return T_IF;
 }
 
 "else"              {
-    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
     return T_ELSE;
 }
 
 "while"             {
-    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
     return T_WHILE;
 }
 
 "int"               {
-    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
     return T_INT;
 }
 
 "void"              {
-    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
     return T_VOID;
 }
 
 "return"            {
-    printf("Linha %d -> PALAVRA RESERVADA '%s'\n", linha_atual, yytext);
     return T_RETURN;
 }
 
 {ID}                {
-    printf("Linha %d -> IDENTIFICADOR '%s'\n", linha_atual, yytext);
     yylval.id = strdup(yytext);
     return T_ID;
 }
 
 {NUM}               {
-    printf("Linha %d -> NUMERO '%s'\n", linha_atual, yytext);
     yylval.ival = atoi(yytext);
     return T_NUM;
 }
 
 "+"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_MAIS;
 }
 
 "-"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_MENOS;
 }
 
 
 
 "/*"                {
-    printf("Linha %d -> INICIO DE COMENTARIO\n", linha_atual);
     inicio_comentario = linha_atual;
     BEGIN(COMENTARIO);
 }
 
 <COMENTARIO>"*/"    {
-    printf("Linha %d -> FIM DE COMENTARIO\n", linha_atual);
     BEGIN(INITIAL);
 }
 
@@ -101,93 +89,76 @@ NUM {DIGITO}+
 }
 
 "*/"                {
-    fprintf(stderr, "ERRO LEXICO: \"%s\" - LINHA: %d\n", yytext, linha_atual);  // Semantico?
+    fprintf(stderr, "ERRO LEXICO: \"%s\" - LINHA: %d\n", yytext, linha_atual);
     exit(1);
 }
 
 
 "*"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_MULT;
 }
 
 "/"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_DIV;
 }
 
 ">="                {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_MAIORIGUAL;
 }
 
 "<="                {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_MENORIGUAL;
 }
 
 "=="                {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_IGUAL;
 }
 
 "!="                {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_DIFERENTE;
 }
 
 ">"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_MAIOR;
 }
 
 "<"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_MENOR;
 }
 
 "="                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_ATRIBUICAO;
 }
 
 ";"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_PONTOEVIRGULA;
 }
 
 ","                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_VIRGULA;
 }
 
 "("                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_APAR;
 }
 
 ")"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_FPAR;
 }
 
 "["                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_ACOLCHETE;
 }
 
 "]"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_FCOLCHETE;
 }
 
 "{"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_ACHAVE;
 }
 
 "}"                 {
-    printf("Linha %d -> SIMBOLO '%s'\n", linha_atual, yytext);
     return T_FCHAVE;
 }
 

@@ -17,9 +17,9 @@ Compilador desenvolvido para a linguagem `C-`, conforme especificado por Louden 
 make
 ```
 
-*  Executar:
+*  Executar
 ```powershell
-.\build\scanner entrada\codigo.txt
+.\build\parser entrada\codigo.txt
 ```
 > Observação: `codigo.txt` pode ser substituido por qualquer código teste
 
