@@ -38,6 +38,8 @@
 
     // Categoria do símbolo -> variável ou função
     typedef enum { Variavel, Funcao } CategoriaSimbolo;
+    // Tipo do símbolo -> void ou int
+    typedef enum { TipoVoid, TipoInt } TipoSimbolo;
     // Tipo da variável -> inteiro ou vetor
     typedef enum { TipoInteiro, TipoVetor } TipoVariavel;
 
@@ -46,6 +48,7 @@
         char *nome;
         CategoriaSimbolo categoria;
         struct Simbolo *prox;
+        TipoSimbolo tipoSimbolo;
 
         // categoria é Variavel
         TipoVariavel tipo;
@@ -88,17 +91,12 @@
         }
 
         while (s) {
+            char *categoria = (s->categoria == Variavel) ? "variavel" : "funcao";
+            char *tipoSimbolo = (s->tipoSimbolo == TipoInt) ? "int" : "void";
+            char *tipoVariavel = (s->categoria == Variavel) ? (s->tipo == TipoInteiro ? "//inteiro" : "//vetor") : "";
+            printf("\t-> %s\t\t[%s//%s%s]\n", s->nome, categoria, tipoSimbolo, tipoVariavel);
+            
             Simbolo *tmp = s;
-            if (s->categoria == Variavel) {
-                if (s->tipo == TipoInteiro) {
-                    printf("\t-> [variavel//inteiro]");
-                } else if (s->tipo == TipoVetor) {
-                    printf("\t-> [variavel//vetor]");
-                }
-            } else if (s->categoria == Funcao) {
-                printf("\t-> [funcao]");
-            }
-            printf(" %s\n", tmp->nome);
             s = s->prox;
             // Libera nome do símbolo
             free(tmp->nome);
@@ -137,7 +135,7 @@
         return NULL;
     }
 
-    void declararSimbolo(const char *nome, CategoriaSimbolo categoria, TipoVariavel tipo, int tamanhoVetor) {
+    void declararSimbolo(const char *nome, CategoriaSimbolo categoria, TipoSimbolo tipoSimbolo, TipoVariavel tipo, int tamanhoVetor) {
         if (!topo_escopo) {
             fprintf(stderr, "ERRO INTERNO: nenhum escopo ativo ao declarar '%s'.\n", nome);
             return;
@@ -150,6 +148,7 @@
         Simbolo *s = (Simbolo*) malloc(sizeof(Simbolo));
         s->nome = strdup(nome);
         s->categoria = categoria;
+        s->tipoSimbolo = tipoSimbolo;
         s->prox = topo_escopo->simbolos;
         topo_escopo->simbolos = s;
 
@@ -174,13 +173,13 @@
         Simbolo *s = buscarSimboloTodosEscopos(nome);
         if (!s) {
             // Erro de variavel nao declarada
-            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+            fprintf(stderr, "ERRO SEMANTICO: variavel \"%s\" nao declarada - LINHA: %d\n", nome, linha_atual);
             return;
         }
 
         if (s->categoria != Variavel) {
             // Erro de tentativa de atribuição a algo que não é variável
-            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" nao eh variavel - LINHA: %d\n", nome, linha_atual);
             return;
         }
 
@@ -188,7 +187,7 @@
         if (s->tipo == TipoVetor) {
             if (indiceVetor >= s->tamanho || indiceVetor < 0) {
                 // Erro de tentativa de acesso do vetor em campo não existente
-                fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+                fprintf(stderr, "ERRO SEMANTICO: variavel \"%s\", índice de acesso fora do intervalo - LINHA: %d\n", nome, linha_atual);
                 return;
             }
             s->valor.vetor[indiceVetor] = valorAtribuido;
@@ -203,13 +202,13 @@
         Simbolo *s = buscarSimboloTodosEscopos(nome);
         if (!s) {
             // Erro de variavel nao declarada
-            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+            fprintf(stderr, "ERRO SEMANTICO: variavel \"%s\" nao declarada - LINHA: %d\n", nome, linha_atual);
             return 0;
         }
 
         if (s->categoria != Variavel) {
             // Erro de tentativa de acesso a algo que não é variável
-            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" nao eh variavel - LINHA: %d\n", nome, linha_atual);
             return 0;
         }
 
@@ -217,7 +216,7 @@
         if (s->tipo == TipoVetor) {
             if (indiceVetor >= s->tamanho) {
                 // Erro de tentativa de acesso do vetor em campo não existente
-                fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+                fprintf(stderr, "ERRO SEMANTICO: variavel \"%s\", índice de acesso fora do intervalo - LINHA: %d\n", nome, linha_atual);
                 return 0;
             }
             return s->valor.vetor[indiceVetor];
@@ -310,7 +309,12 @@
                 ;
 
     declaracaoVariaveis:    tipoEspecificador T_ID T_PONTOEVIRGULA  {
-                                                                        declararSimbolo($2, Variavel, TipoInteiro, 1);
+                                                                        if (strcmp($1->dado.nome, "void") == 0) {
+                                                                            // Erro: tipo void não pode ser usado em variáveis
+                                                                            fprintf(stderr, "ERRO SEMANTICO: tipo \"void\" nao permitido para variaveis - LINHA: %d\n", linha_atual);
+                                                                        }
+
+                                                                        declararSimbolo($2, Variavel, TipoInt, TipoInteiro, 1);
 
                                                                         $$ = criarNo(TipoDeclaracaoVars);
                                                                         $$->filhos[0] = $1;
@@ -323,7 +327,12 @@
                                                                         free($2);
                                                                     }
                             | tipoEspecificador T_ID T_ACOLCHETE T_NUM T_FCOLCHETE T_PONTOEVIRGULA  {
-                                                                                                        declararSimbolo($2, Variavel, TipoVetor, $4);
+                                                                                                        if (strcmp($1->dado.nome, "void") == 0) {
+                                                                                                            // Erro: tipo void não pode ser usado em variáveis
+                                                                                                            fprintf(stderr, "ERRO SEMANTICO: tipo \"void\" nao permitido para variaveis - LINHA: %d\n", linha_atual);
+                                                                                                        }  
+
+                                                                                                        declararSimbolo($2, Variavel, TipoInt, TipoVetor, $4);
 
                                                                                                         $$ = criarNo(TipoDeclaracaoVars);
                                                                                                         $$->filhos[0] = $1;
@@ -346,7 +355,9 @@
                         ;
 
     declaracaoFuncao:   tipoEspecificador T_ID T_APAR parametros T_FPAR escopo  {
-                                                                                    declararSimbolo($2, Funcao, TipoInteiro, 0); // TipoVariavel e tamanhoVetor não são relevantes para funções
+                                                                                    TipoSimbolo tipoSimbolo = strcmp($1->dado.nome, "int") == 0 ? TipoInt : TipoVoid;
+
+                                                                                    declararSimbolo($2, Funcao, tipoSimbolo, TipoInteiro, 0); // TipoVariavel e tamanhoVetor não são relevantes para funções
 
                                                                                     $$ = criarNo(TipoDeclaracaoFunc);
                                                                                     $$->filhos[0] = $1;
@@ -635,6 +646,32 @@ void gerarDOT(AST* raiz) {
     fclose(file);
 
     //printf("Arquivo arvore.dot gerado com sucesso!\n");
+}
+
+int gerarCodigoIntermediario(AST* raiz) {
+    int i;
+    AST* filho;
+
+    for (i=0, filho=raiz->filhos[i]; i<5 && filho!=NULL; filho=raiz->filhos[++i]) {
+        switch (filho->tipo) {
+            case TipoExpressaoSimples:
+                // Gerar IR
+                break;
+            case TipoExpressaoSoma:
+                // Gerar IR
+                break;
+            case TipoTermo:
+                // Gerar IR
+                break;
+            case TipoFator:
+                // Gerar IR
+                break;
+            default:
+                break;
+        }
+    }
+
+    return -1;
 }
 
 void liberaAST(AST* no) {
