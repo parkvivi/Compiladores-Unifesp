@@ -44,7 +44,6 @@
 
     Quadrupla *quads = NULL;
     int quads_cont = 0;
-    quads = malloc(sizeof(Quadrupla)*quads_cont);
 
     int temp_cont = 0;
     char* novoTemp(){
@@ -62,11 +61,14 @@
 
     // Emitir Quadruplas
     void emitir_quads(const char *op, const char *a1, const char *a2, const char *res){
-        quads = realloc(quads, quads_cont++);
-        quads[quads_cont-1].operacao = strdup(op);
-        quads[quads_cont-1].argumento1 = a1  ? strdup(a1) : NULL;
-        quads[quads_cont-1].argumento2 = a2  ? strdup(a2) : NULL;
-        quads[quads_cont-1].resultado  = res ? strdup(res) : NULL;
+        quads = realloc(quads, sizeof(Quadrupla)*(quads_cont + 1));
+
+        quads[quads_cont].operacao = strdup(op);
+        quads[quads_cont].argumento1 = a1  ? strdup(a1) : NULL;
+        quads[quads_cont].argumento2 = a2  ? strdup(a2) : NULL;
+        quads[quads_cont].resultado  = res ? strdup(res) : NULL;
+
+        quads_cont++;
     }
 
     // Limpa quadruplas e libera memória
@@ -96,7 +98,7 @@
 
             snprintf(buffer, sizeof(buffer), "%d", no->dado.valor);
             
-            char *t = novotemp();
+            char *t = novoTemp();
             emitir_quads("LDI", buffer, "-", t);
             return t;
         }
@@ -107,71 +109,162 @@
             return t;
         }
 
+        else if(no->tipo == TipoExpressao && no->filhos[1] && strcmp(no->filhos[1]->dado.nome, "=") == 0) {
+            char* dir = gerar_quads(no->filhos[2]);
+            char *nomeVar = no->filhos[0]->filhos[0]->dado.nome;
+            emitir_quads("=", dir, "-", nomeVar);
+            return NULL;
+        }
+
+        else if (no->tipo == TipoExpressao && no->filhos[1]) {
+            char *op = no->filhos[1]->dado.nome;
+            
+            char *esq = gerar_quads(no->filhos[0]);
+            char *dir = gerar_quads(no->filhos[2]);
+
+            if (strcmp(op, "+") == 0 || strcmp(op, "-") == 0 ||
+                strcmp(op, "*") == 0 || strcmp(op, "/") == 0) {
+
+                char *tmp = novoTemp();
+                emitir_quads(op, esq, dir, tmp);
+                return tmp;
+
+            } else if (strcmp(op, "==") == 0 || strcmp(op, "<") == 0 ||
+                    strcmp(op, "<=") == 0 || strcmp(op, ">") == 0 ||
+                    strcmp(op, ">=") == 0 || strcmp(op, "!=") == 0) {
+
+                char *tmp = novoTemp();
+                emitir_quads(op, esq, dir, tmp); // cria resultado booleano
+                return tmp;
+            }
+        }
+
         else if((no->tipo == TipoExpressaoSoma || no->tipo == TipoTermo || no->tipo == TipoExpressaoSimples || no->tipo == TipoExpressao) && no->filhos[1] != NULL){ // expressoes (+, -, *, /)
             char *esq = gerar_quads(no->filhos[0]);
             char *dir = gerar_quads(no->filhos[2]);
 
-            char *res = novotemp();
+            char *res = novoTemp();
             emitir_quads(no->filhos[1]->dado.nome, esq, dir, res);
             return res;
         }
         
         else if((no->tipo == TipoDeclaracaoVars)) { // declaracao de variaveis
-            char* ops = gerar_quads(no->filhos[0]);
-            char* fil1 = gerar_quads(no->filhos[1]);
+            char* tipo = no->filhos[0]->dado.nome; 
+            char *nome = no->filhos[1]->dado.nome;
+            char *temp = novoTemp();
 
-            char *res = novotemp();
             if(no->filhos[2]) { // vetores
-                char* fil2 = gerar_quads(no->filhos[2]);
-                emitir_quads(ops, fil1, fil2, res);
+                char buffer[32];
+                sprintf(buffer, "%d", no->filhos[2]->dado.valor);
+                emitir_quads("VAR", tipo, nome, temp);
+                emitir_quads("VETOR", nome, buffer, "-");
             }
             else // inteiros
-                emitir_quads(ops, fil1, "-", res);
+                emitir_quads("VAR", tipo, nome, temp);
 
-            return res;
+            return NULL;
         }
 
         else if((no->tipo == TipoDeclaracaoSelecao)) { // if, else
-            char* fil1 = gerar_quads(no->filhos[0]);
-            char *label1 = novoLabel();
+            char *cond = gerar_quads(no->filhos[0]);
+
+            char *L_else = novoLabel();
+            char *L_end  = novoLabel();
             
-            emitir_quads("IF", fil1, label1, "-");
-            gerar_quads(no->filhos[1]); // bloco dentro do if
+            emitir_quads("IF_FALSE", cond, "-", L_else);
+            gerar_quads(no->filhos[1]); // then
     
-            if(no->filhos[2]) { // else
-                char* label2 = novoLabel();
-                emitir_quads("GOTO", label2, "-", "-");
-                emitir_quads("LABEL", label1, "-", "-");
-                gerar_quads(no->filhos[2]); // bloco else
-                emitir_quads("LABEL", label2, "-", "-");
+            if(no->filhos[3]) { // else
+                emitir_quads("GOTO", "-", "-", L_end);
+                emitir_quads("LABEL", "-", "-", L_else);
+                gerar_quads(no->filhos[3]); // else
+                emitir_quads("LABEL", "-", "-", L_end);
             } else {
-                emitir_quads("LABEL", label1, "-", "-");
+                emitir_quads("LABEL", "-", "-", L_else);
             }
             return NULL;
         }
 
         else if((no->tipo == TipoDeclaracaoIteracao)) { //while
-            char* label1 = novoLabel();
-            char* label2 = novoLabel();
-            emitir_quads("LABEL", label1, "-", "-");
-            char* fil1 = gerar_quads(no->filhos[0]);
-            emitir_quads("IF", fil1, label2, "-");
+            char *L_ini = novoLabel();
+            char *L_end = novoLabel();
+
+            emitir_quads("LABEL", "-", "-", L_ini);
+
+            char *cond = gerar_quads(no->filhos[0]);
+            emitir_quads("IF_FALSE", cond, "-", L_end);
+
             gerar_quads(no->filhos[1]);
-            emitir_quads("GOTO", label1, "-", "-");
-            emitir_quads("LABEL", label2, "-", "-");
+
+            emitir_quads("GOTO", "-", "-", L_ini);
+            emitir_quads("LABEL", "-", "-", L_end);
+
             return NULL;
         }
 
         else if((no->tipo == TipoDeclaracaoFunc)) {
+            emitir_quads("FUNCAO", no->filhos[0]->dado.nome, no->filhos[1]->dado.nome, "-");
+            gerar_quads(no->filhos[2]);
+            gerar_quads(no->filhos[3]);
+            return NULL;
+        }
+
+        else if(no->tipo == TipoParametros) {
+            gerar_quads(no->filhos[0]);
+            return NULL;
+        }
+
+        else if(no->tipo == TipoListaParametros) {
+            gerar_quads(no->filhos[0]);
+            gerar_quads(no->filhos[1]);
+            return NULL;
+        }
+
+        else if(no->tipo == TipoParametro) {
+            char *tipo = no->filhos[0]->dado.nome;
+            char *nome = no->filhos[1]->dado.nome;
+
+            // função atual = última FUNCAO emitida
+            char *func = quads[quads_cont - 1].argumento2;
+
+            emitir_quads("ARG", tipo, nome, func);
+            return NULL;
+        }
+
+        else if(no->tipo == TipoDeclaracaoRetorno) {
+            if(no->filhos[0]) {
+                char *val = gerar_quads(no->filhos[0]);
+                emitir_quads("RETURN", val, "-", "-");
+            } else {
+                emitir_quads("RETURN", "-", "-", "-");
+            }
+            return NULL;
+        }
+
+        else if(no->tipo == TipoEscopo || no->tipo == TipoListaEscopo) {
+            gerar_quads(no->filhos[0]); 
+            gerar_quads(no->filhos[1]); 
+            return NULL;
+        }
+
+        else if (no->tipo == TipoCorpo) {
+            gerar_quads(no->filhos[0]);
+            return NULL;
+        }
+
+        else {
+            for(int i=0;i<4 && no->filhos[i] != NULL;i++) {
+                gerar_quads(no->filhos[i]);
+            }
             return NULL;
         }
 
         return NULL;
     }
 
-    /*void print_quads(FILE *out){
+    void print_quads(FILE *out){
         for(int i=0;i<quads_cont;i++){
-            Quadrupla *q = quads[i];
+            Quadrupla *q = &quads[i];
             fprintf(out, "%3d: (%s, %s, %s, %s)\n",
                     i,
                     q->operacao ? q->operacao : "-",
@@ -179,7 +272,7 @@
                     q->argumento2 ? q->argumento2 : "-",
                     q->resultado  ? q->resultado  : "-");
         }
-    }*/
+    }
 
     /* ================== TABELA DE SÍMBOLOS COM ESCOPO ================== */
 
@@ -394,7 +487,7 @@
                                     temp_cont = 0; /* reinicia temporários para esta expressão (opcional) */
                                     char *final = gerar_quads($$);
                                     printf("\nQuádruplas geradas:\n");
-                                    //print_quads(stdout);
+                                    print_quads(stdout);
                                     /* opcional: mostrar where result is */
                                     if(final) printf("\nResultado em: %s\n", final);
 
