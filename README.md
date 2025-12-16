@@ -5,7 +5,9 @@ Compilador desenvolvido para a linguagem `C-`, conforme especificado por Louden 
 ## Requisitos
 
 - **Flex** (Gerador de Analisador Léxico)
+- **Bison/Yacc** (Gerador de Analisador Sintático)
 - **GCC** (GNU Compiler Collection)
+- **Graphviz** (Visualização da AST)
 - **Make** (Ferramenta de Automação)
 
 ## Analisador Léxico
@@ -22,6 +24,12 @@ make
 .\build\parser entrada\codigo.txt
 ```
 > Observação: `codigo.txt` pode ser substituido por qualquer código teste
+
+* Gerar arquivo .png da AST
+```powershell
+dot -Tpng .\build\arvore.dot -o .\build\arvore.png
+```
+> Observação: `arvore.png` pode ser substituido
 
 *  Limpar arquivos gerados
 ```powershell
