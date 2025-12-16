@@ -21,7 +21,7 @@
             char* nome; // nome de funções ou variáveis
             int valor;
         } dado;
-        struct AST* filhos[5];
+        struct AST* filhos[4];
     } AST;
 
     /* ================== PROTÓTIPOS DA ÁRVORE ================== */
@@ -32,6 +32,154 @@
     void gerarDOT(AST* raiz);
     const char* nomeTipoNo(AST* no);
     void imprimirNoDOT(AST* no, FILE* file);
+
+    /* ================== Quádruplas (TAC) ================== */
+
+    typedef struct {
+        char *operacao;
+        char *argumento1;
+        char *argumento2;
+        char *resultado;
+    } Quadrupla;
+
+    Quadrupla *quads = NULL;
+    int quads_cont = 0;
+    quads = malloc(sizeof(Quadrupla)*quads_cont);
+
+    int temp_cont = 0;
+    char* novoTemp(){
+        char* t = malloc(sizeof(char)*20);
+        sprintf(t, "t%d", temp_cont++);
+        return t;
+    }
+
+    int label_cont = 0;
+    char* novoLabel(){
+        char* l = malloc(sizeof(char)*20);
+        sprintf(l, "L%d", label_cont++);
+        return l;
+    }
+
+    // Emitir Quadruplas
+    void emitir_quads(const char *op, const char *a1, const char *a2, const char *res){
+        quads = realloc(quads, quads_cont++);
+        quads[quads_cont-1].operacao = strdup(op);
+        quads[quads_cont-1].argumento1 = a1  ? strdup(a1) : NULL;
+        quads[quads_cont-1].argumento2 = a2  ? strdup(a2) : NULL;
+        quads[quads_cont-1].resultado  = res ? strdup(res) : NULL;
+    }
+
+    // Limpa quadruplas e libera memória
+    /*void limpa_quads(){
+        for(int i=0;i<quads_cont;i++){
+            free(quads[i].operacao);
+            if(quads[i].argumento1) free(quads[i].argumento1);
+            if(quads[i].argumento2) free(quads[i].argumento2);
+            if(quads[i].resultado) free(quads[i].resultado);
+        }
+
+        free(quads);
+        quads = NULL;
+        quads_cont = 0;
+        quads = malloc(sizeof(Quadrupla)*quads_cont);
+        temp_cont = 0;
+        label_cont = 0;
+    }*/
+
+    /* Gera quádruplas a partir da AST e retorna "place" (string) que contém o resultado */
+    char* gerar_quads(AST* no){
+        if(!no) return NULL;
+
+        if(no->tipo == TipoNum){
+            /* cria um temporário para a constante e emite LDI (load immediate): ( LDI, constante, -, temp ) */
+            char buffer[64];
+
+            snprintf(buffer, sizeof(buffer), "%d", no->dado.valor);
+            
+            char *t = novotemp();
+            emitir_quads("LDI", buffer, "-", t);
+            return t;
+        }
+
+        else if(no->tipo == TipoID) {
+            char *t = novoTemp();
+            emitir_quads("variavel", no->dado.nome, "-", t);
+            return t;
+        }
+
+        else if((no->tipo == TipoExpressaoSoma || no->tipo == TipoTermo || no->tipo == TipoExpressaoSimples || no->tipo == TipoExpressao) && no->filhos[1] != NULL){ // expressoes (+, -, *, /)
+            char *esq = gerar_quads(no->filhos[0]);
+            char *dir = gerar_quads(no->filhos[2]);
+
+            char *res = novotemp();
+            emitir_quads(no->filhos[1]->dado.nome, esq, dir, res);
+            return res;
+        }
+        
+        else if((no->tipo == TipoDeclaracaoVars)) { // declaracao de variaveis
+            char* ops = gerar_quads(no->filhos[0]);
+            char* fil1 = gerar_quads(no->filhos[1]);
+
+            char *res = novotemp();
+            if(no->filhos[2]) { // vetores
+                char* fil2 = gerar_quads(no->filhos[2]);
+                emitir_quads(ops, fil1, fil2, res);
+            }
+            else // inteiros
+                emitir_quads(ops, fil1, "-", res);
+
+            return res;
+        }
+
+        else if((no->tipo == TipoDeclaracaoSelecao)) { // if, else
+            char* fil1 = gerar_quads(no->filhos[0]);
+            char *label1 = novoLabel();
+            
+            emitir_quads("IF", fil1, label1, "-");
+            gerar_quads(no->filhos[1]); // bloco dentro do if
+    
+            if(no->filhos[2]) { // else
+                char* label2 = novoLabel();
+                emitir_quads("GOTO", label2, "-", "-");
+                emitir_quads("LABEL", label1, "-", "-");
+                gerar_quads(no->filhos[2]); // bloco else
+                emitir_quads("LABEL", label2, "-", "-");
+            } else {
+                emitir_quads("LABEL", label1, "-", "-");
+            }
+            return NULL;
+        }
+
+        else if((no->tipo == TipoDeclaracaoIteracao)) { //while
+            char* label1 = novoLabel();
+            char* label2 = novoLabel();
+            emitir_quads("LABEL", label1, "-", "-");
+            char* fil1 = gerar_quads(no->filhos[0]);
+            emitir_quads("IF", fil1, label2, "-");
+            gerar_quads(no->filhos[1]);
+            emitir_quads("GOTO", label1, "-", "-");
+            emitir_quads("LABEL", label2, "-", "-");
+            return NULL;
+        }
+
+        else if((no->tipo == TipoDeclaracaoFunc)) {
+            return NULL;
+        }
+
+        return NULL;
+    }
+
+    /*void print_quads(FILE *out){
+        for(int i=0;i<quads_cont;i++){
+            Quadrupla *q = quads[i];
+            fprintf(out, "%3d: (%s, %s, %s, %s)\n",
+                    i,
+                    q->operacao ? q->operacao : "-",
+                    q->argumento1 ? q->argumento1 : "-",
+                    q->argumento2 ? q->argumento2 : "-",
+                    q->resultado  ? q->resultado  : "-");
+        }
+    }*/
 
     /* ================== TABELA DE SÍMBOLOS COM ESCOPO ================== */
 
@@ -240,7 +388,21 @@
                                     $$ = criarNo(TipoPrograma);
                                     $$->filhos[0] = $1;
                                     gerarDOT($$);
-                                    // gerar quadruplas
+
+                                    /* Geração de quádruplas a partir da AST */
+                                    //limpa_quads(); /* limpa quádruplas anteriores */
+                                    temp_cont = 0; /* reinicia temporários para esta expressão (opcional) */
+                                    char *final = gerar_quads($$);
+                                    printf("\nQuádruplas geradas:\n");
+                                    //print_quads(stdout);
+                                    /* opcional: mostrar where result is */
+                                    if(final) printf("\nResultado em: %s\n", final);
+
+                                    printf("---------------------\n> ");
+                                    /* liberar recursos */
+                                    if(final) free(final);
+                                    //limpa_quads();
+
                                     liberaAST($$);
                                 }
 
@@ -509,7 +671,7 @@
 AST* criarNo(TipoNo tipo) {
     AST* no = malloc(sizeof(AST));
     no->tipo = tipo;
-    for(int i=0; i<5; i++)
+    for(int i=0; i<4; i++)
         no->filhos[i] = NULL;
     return no;
 }
@@ -560,7 +722,7 @@ void imprimirNoDOT(AST* no, FILE* file) {
 
     strcpy(nomeDoNo, nomeTipoNo(no));
 
-    for(int i=0; i<5; i++) {
+    for(int i=0; i<4; i++) {
         AST* filho = no->filhos[i];
         if(filho) {
             char nomeFilho[50];
@@ -594,7 +756,7 @@ void gerarDOT(AST* raiz) {
 void liberaAST(AST* no) {
     if (!no) return;
     int i;
-    for(i=0;i<5;i++)
+    for(i=0;i<4;i++)
         liberaAST(no->filhos[i]);
     if(no->tipo == TipoID || no->tipo == TipoEspecifico || no->tipo == TipoRelacional || no->tipo == TipoSoma || no->tipo == TipoMult) free(no->dado.nome);
     free(no);
