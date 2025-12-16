@@ -39,7 +39,7 @@
     /* geração de código intermediário */
     int temp_count = 0;
     int label_count = 0;
-    typedef enum { IR_ADD, IR_MUL, IR_SUB, IR_DIV, IR_ASSIGN, IR_LT, IR_IF, IR_GOTO, IR_LABEL, IR_NULL } IROp;
+    typedef enum { IR_ADD, IR_MUL, IR_SUB, IR_DIV, IR_ASSIGN, IR_LT, IR_GT, IR_LE, IR_GE, IR_EQ, IR_NEQ, IR_IF, IR_GOTO, IR_LABEL } IROp;
 
     /* ================== TABELA DE SÍMBOLOS COM ESCOPO ================== */
 
@@ -676,16 +676,29 @@ char* op_to_str(IROp op) {
         case IR_DIV: return "/";
         case IR_ASSIGN: return "=";
         case IR_LT: return "<";
+        case IR_GT: return ">";
+        case IR_LE: return "<=";
+        case IR_GE: return ">=";
+        case IR_EQ: return "==";
+        case IR_NEQ: return "!=";
         case IR_IF: return "if";
         case IR_GOTO: return "goto";
         case IR_LABEL: return "label";
-        case IR_NULL: return "";
         default: return "???";
     }
 }
 
 void emit(IROp op, char* arg1, char* arg2, char* result, FILE *file) {
-    // Exemplo de como gerar uma instrucao intermediaria
+    if (op == IR_IF) {
+        fprintf(file, "if %s goto %s\n", arg1, arg2);
+        return;
+    }
+
+    if (op == IR_GOTO) {
+        fprintf(file, "goto %s\n", arg1);
+        return;
+    }
+
     char *op_str = (op == IR_ASSIGN) ? "" : op_to_str(op);
     fprintf(file, "%s = ", result);
     fprintf(file, "%s ", arg1);
@@ -699,11 +712,9 @@ char* gerarExpressao(AST* no, FILE *file) {
     switch (no->tipo) {
 
         case TipoNum: {
-            char* t = criaVariavelTemporaria();
-            char buf[16];
-            sprintf(buf, "%d", no->dado.valor);
-            emit(IR_ASSIGN, buf, NULL, t, file);  // Atribui o numero a um temporario
-            return t;
+            char *buffer = (char*)malloc(50);
+            sprintf(buffer, "%d", no->dado.valor);
+            return buffer;
         }
 
         case TipoID:
@@ -718,7 +729,7 @@ char* gerarExpressao(AST* no, FILE *file) {
 
         case TipoTermo: {
             char *e1 = gerarExpressao(no->filhos[0], file);
-            char *e2 = gerarExpressao(no->filhos[1], file);
+            char *e2 = gerarExpressao(no->filhos[2], file);
             char *t = criaVariavelTemporaria();
             if (no->filhos[1]->tipo == TipoMult && strcmp(no->filhos[1]->dado.nome, "*") == 0) {
                 emit(IR_MUL, e1, e2, t, file);
@@ -748,7 +759,28 @@ char* gerarExpressao(AST* no, FILE *file) {
         }
 
         case TipoExpressaoSimples: {
-            return gerarExpressao(no->filhos[0], file);
+            if (no->filhos[1]) {
+                // Relacional
+                char *e1 = gerarExpressao(no->filhos[0], file);
+                char *e2 = gerarExpressao(no->filhos[2], file);
+                char *t = criaVariavelTemporaria();
+                if (no->filhos[1]->tipo == TipoRelacional && strcmp(no->filhos[1]->dado.nome, "<") == 0) {
+                    emit(IR_LT, e1, e2, t, file);
+                } else if (no->filhos[1]->tipo == TipoRelacional && strcmp(no->filhos[1]->dado.nome, ">") == 0) {
+                    emit(IR_GT, e1, e2, t, file);
+                } else if (no->filhos[1]->tipo == TipoRelacional && strcmp(no->filhos[1]->dado.nome, "<=") == 0) {
+                    emit(IR_LE, e1, e2, t, file);
+                } else if (no->filhos[1]->tipo == TipoRelacional && strcmp(no->filhos[1]->dado.nome, ">=") == 0) {
+                    emit(IR_GE, e1, e2, t, file);
+                } else if (no->filhos[1]->tipo == TipoRelacional && strcmp(no->filhos[1]->dado.nome, "==") == 0) {
+                    emit(IR_EQ, e1, e2, t, file);
+                } else if (no->filhos[1]->tipo == TipoRelacional && strcmp(no->filhos[1]->dado.nome, "!=") == 0) {
+                    emit(IR_NEQ, e1, e2, t, file);
+                }
+                return t;
+            } else {
+                return gerarExpressao(no->filhos[0], file);
+            }
         }
 
         case TipoRelacional: {
@@ -770,13 +802,26 @@ void gerarDeclaracao(AST* no, FILE *file) {
     switch (no->tipo) {
 
         case TipoExpressao: {
-            char* rhs = gerarExpressao(no->filhos[2], file);
-            char* lhs = no->filhos[0]->dado.nome;
-            emit(IR_NULL, rhs, NULL, lhs, file);
+            gerarExpressao(no, file);
             break;
         }
 
+        case TipoDeclaracaoIteracao: {
+            char* inicioLabel = criaLabel();
+            char* fimLabel = criaLabel();
 
+            fprintf(file, "%s:\n", inicioLabel);
+            char* cond = gerarExpressao(no->filhos[0], file);
+            emit(IR_IF, cond, fimLabel, NULL, file);
+            gerarDeclaracao(no->filhos[1], file);
+            emit(IR_GOTO, inicioLabel, NULL, NULL, file);
+            fprintf(file, "%s:\n", fimLabel);
+
+            free(inicioLabel);
+            free(fimLabel);
+            free(cond);
+            break;
+        }
 
         default:
             // Para os nós estruturais

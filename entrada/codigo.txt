@@ -1,6 +1,13 @@
 void main(void) {
-    int y;
     int x;
-    x = 10;
-    y = (x + 4) + 6;
+    int y;
+
+    y = 0;
+    while(y != 2){
+        x = 0;
+        y = y + 1;
+        while(x < y){
+            x = x + 1;
+        }
+    }
 }
