@@ -166,6 +166,13 @@
             if(no->filhos[1] == NULL) // inteiro
                 return no->filhos[0]->dado.nome;
             
+            char* indice = gerar_quads(no->filhos[1]);
+            char* nome = no->filhos[0]->dado.nome;
+
+            char* var = malloc(strlen(nome) + strlen(indice) + 3);
+            sprintf(var, "%s[%s]", nome, indice);
+
+            return var;
         }
 
         else if(no->tipo == TipoNum){ // numero
