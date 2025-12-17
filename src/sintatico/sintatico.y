@@ -575,22 +575,6 @@
     programa: listaDeclaracoes  {
                                     $$ = criarNo(TipoPrograma);
                                     $$->filhos[0] = $1;
-                                    gerarDOT($$);
-
-                                    /* Geração de quádruplas a partir da AST */
-                                    limpa_quads(); /* limpa quádruplas anteriores */
-                                    char *final = gerar_quads($$);
-                                    printf("\nQuadruplas geradas:\n");
-                                    print_quads(stdout);
-                                    /* opcional: mostrar where result is */
-                                    if(final) printf("\nResultado em: %s\n", final);
-
-                                    printf("---------------------\n> ");
-                                    /* liberar recursos */
-                                    if(final) free(final);
-                                    limpa_quads();
-
-                                    liberaAST($$);
                                     raizAST = $$;
                                 }
 
@@ -1191,12 +1175,12 @@ AST* enxugaAST(AST* no) {
 
     if (!no) return NULL;
 
-    if (no->filhos[0] != NULL && no->filhos[1] == NULL && no->filhos[2] == NULL && no->filhos[3] == NULL && no->filhos[4] == NULL) {
+    if (no->filhos[0] != NULL && no->filhos[1] == NULL && no->filhos[2] == NULL && no->filhos[3] == NULL) {
         AST* temp = no;
         no = enxugaAST(no->filhos[0]);
         free(temp);
     } else {
-        for (i = 0; i < 5; i++) {
+        for (i = 0; i < 4; i++) {
             no->filhos[i] = enxugaAST(no->filhos[i]);
         }
     }
@@ -1236,6 +1220,13 @@ int main(int argc, char **argv){
 
     /* sai do escopo global e libera memória */
     sairEscopo();
+
+    /* Geração de quádruplas a partir da AST */
+    gerar_quads(raizAST);
+    printf("\nQuadruplas geradas:\n");
+    print_quads(stdout);
+    printf("---------------------\n> ");
+    limpa_quads();
 
     raizAST = enxugaAST(raizAST);
 
