@@ -10,7 +10,7 @@ Compilador desenvolvido para a linguagem `C-`, conforme especificado por Louden 
 - **Graphviz** (Visualização da AST)
 - **Make** (Ferramenta de Automação)
 
-## Analisador Léxico
+## Instruções para Uso
 
 > Observação: Aqui levando em conta somente o uso do Windows
 
