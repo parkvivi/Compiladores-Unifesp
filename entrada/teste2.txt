@@ -15,3 +15,7 @@ int minloc ( int a[], int low, int high ) {
     } 
     return k;
 }
+
+void main(void) {
+    return;
+}
