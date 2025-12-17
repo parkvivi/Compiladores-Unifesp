@@ -645,7 +645,8 @@
                         | T_VOID { $$ = criarNo(TipoEspecifico); $$->dado.nome = malloc(strlen("void") + 1); strcpy($$->dado.nome, "void");  }
                         ;
 
-    declaracaoFuncao:   tipoEspecificador T_ID T_APAR parametros T_FPAR escopo  {
+    declaracaoFuncao:   tipoEspecificador T_ID { entrarEscopo(linha_atual); } T_APAR parametros T_FPAR escopo  {
+                                                                                    sairEscopo();
                                                                                     TipoSimbolo tipoSimbolo = strcmp($1->dado.nome, "int") == 0 ? TipoInt : TipoVoid;
 
                                                                                     declararSimbolo($2, Funcao, tipoSimbolo, TipoInteiro, 0); // TipoVariavel e tamanhoVetor não são relevantes para funções
@@ -657,8 +658,8 @@
                                                                                     nomeFunc->dado.nome = strdup($2);
                                                                                     $$->filhos[1] = nomeFunc;
 
-                                                                                    $$->filhos[2] = $4;
-                                                                                    $$->filhos[3] = $6;
+                                                                                    $$->filhos[2] = $5;
+                                                                                    $$->filhos[3] = $7;
 
                                                                                     free($2);
                                                                                 }
@@ -678,6 +679,7 @@
                                             AST* no = criarNo(TipoID);
                                             no->dado.nome = strdup($2);
                                             $$->filhos[1] = no;
+                                            declararSimbolo($2, Variavel, TipoInt, TipoInteiro, 1);
                                             free($2);
                                         }
                 | tipoEspecificador T_ID T_ACOLCHETE T_FCOLCHETE    {
@@ -690,14 +692,15 @@
                                                                         vetor->dado.nome = malloc(strlen("[]")+1);
                                                                         strcpy(vetor->dado.nome, "[]");
                                                                         $$->filhos[2] = vetor;
+                                                                        declararSimbolo($2, Variavel, TipoInt, TipoVetor, 100);
                                                                         free($2);
                                                                     }
                 ;
 
-    escopo: T_ACHAVE { entrarEscopo(linha_atual); } declaracoesLocais listaEscopo T_FCHAVE {   sairEscopo();
+    escopo: T_ACHAVE  declaracoesLocais listaEscopo T_FCHAVE { 
                                                                                     $$ = criarNo(TipoEscopo);
-                                                                                    $$->filhos[0] = $3;
-                                                                                    $$->filhos[1] = $4;
+                                                                                    $$->filhos[0] = $2;
+                                                                                    $$->filhos[1] = $3;
                                                                                 }
             ;
 
