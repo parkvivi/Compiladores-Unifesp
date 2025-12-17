@@ -25,6 +25,7 @@
     } AST;
 
     AST *raizAST = NULL;
+    char* origem = NULL;
 
     /* ================== PROTÓTIPOS DA ÁRVORE ================== */
 
@@ -119,22 +120,34 @@
         free(tmpE);
     }
 
-    Simbolo* buscarSimboloEscopoAtual(const char *nome) {
+    Simbolo* buscarSimboloEscopoAtual(const char *nome, CategoriaSimbolo categoria, int verificarTipos) {
         if (!topo_escopo) return NULL;
         Simbolo *s = topo_escopo->simbolos;
         while (s) {
-            if (strcmp(s->nome, nome) == 0) return s;
+            if (strcmp(s->nome, nome) == 0) {
+                if (verificarTipos == 1 && s->categoria != categoria) {
+                    s = s->prox;
+                    continue;
+                }
+                return s;
+            }
             s = s->prox;
         }
         return NULL;
     }
 
-    Simbolo* buscarSimboloTodosEscopos(const char *nome) {
+    Simbolo* buscarSimboloTodosEscopos(const char *nome, CategoriaSimbolo categoria, int verificarTipos) {
         Escopo *e = topo_escopo;
         while (e) {
             Simbolo *s = e->simbolos;
             while (s) {
-                if (strcmp(s->nome, nome) == 0) return s;
+                if (strcmp(s->nome, nome) == 0) {
+                    if (verificarTipos == 1 && s->categoria != categoria) {
+                        s = s->prox;
+                        continue;
+                    }
+                    return s;
+                }
                 s = s->prox;
             }
             e = e->prox;
@@ -147,9 +160,9 @@
             fprintf(stderr, "ERRO INTERNO: nenhum escopo ativo ao declarar '%s'.\n", nome);
             return;
         }
-        if (buscarSimboloEscopoAtual(nome) != NULL) {
-            // Erro de variavel duplicada no escopo
-            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" - LINHA: %d\n", nome, linha_atual);
+        if (buscarSimboloEscopoAtual(nome, categoria, 1) != NULL) {
+            // Erro de simbolo duplicada no escopo
+            fprintf(stderr, "ERRO SEMANTICO: identificador \"%s\" em uso - LINHA: %d\n", nome, linha_atual);
             return;
         }
         Simbolo *s = (Simbolo*) malloc(sizeof(Simbolo));
@@ -177,7 +190,7 @@
     }
 
     void atribuirValorAVariavel(const char *nome, int valorAtribuido, int indiceVetor) {
-        Simbolo *s = buscarSimboloTodosEscopos(nome);
+        Simbolo *s = buscarSimboloTodosEscopos(nome, Variavel, 1);
         if (!s) {
             // Erro de variavel nao declarada
             fprintf(stderr, "ERRO SEMANTICO: variavel \"%s\" nao declarada - LINHA: %d\n", nome, linha_atual);
@@ -206,7 +219,7 @@
     }
 
     int buscarValorDeVariavel(const char *nome, int indiceVetor) {
-        Simbolo *s = buscarSimboloTodosEscopos(nome);
+        Simbolo *s = buscarSimboloTodosEscopos(nome, Variavel, 1);
         if (!s) {
             // Erro de variavel nao declarada
             fprintf(stderr, "ERRO SEMANTICO: variavel \"%s\" nao declarada - LINHA: %d\n", nome, linha_atual);
@@ -482,6 +495,10 @@
                 ;
 
     variavel:   T_ID    {
+                            Simbolo* s = buscarSimboloTodosEscopos($1, Variavel, 1);
+                            if (!s) {
+                                fprintf(stderr, "ERRO SEMANTICO: variavel \"%s\" nao declarada - LINHA: %d\n", $1, linha_atual);
+                            }
                             $$ = criarNo(TipoVar);
                             AST* no = criarNo(TipoID);
                             no->dado.nome = strdup($1);
@@ -489,6 +506,10 @@
                             free($1);
                         }
                 | T_ID T_ACOLCHETE expressao T_FCOLCHETE    {
+                                                                Simbolo* s = buscarSimboloTodosEscopos($1, Variavel, 1);
+                                                                if (!s) {
+                                                                    fprintf(stderr, "ERRO SEMANTICO: variavel \"%s\" nao declarada - LINHA: %d\n", $1, linha_atual);
+                                                                }
                                                                 $$ = criarNo(TipoVar);
                                                                 AST* no = criarNo(TipoID);
                                                                 no->dado.nome = strdup($1);
@@ -579,39 +600,38 @@ AST* criarNo(TipoNo tipo) {
 const char* nomeTipoNo(AST* no) {
     static char buffer[50];
     switch (no->tipo) {
-        case TipoPrograma:           return "programa";
-        case TipoListaDeclaracoes:  return "listaDeclaracoes";
-        case TipoDeclaracao:        return "declaracao";
-        case TipoDeclaracaoVars:    return "declaracaoVariaveis";
-        case TipoEspecifico:        return no->dado.nome;
-        case TipoDeclaracaoFunc:    return "declaracaoFuncao";
-        case TipoID:                return no->dado.nome;
-        case TipoParametros:        return "parametros";
-        case TipoListaParametros:   return "listaParametros";
-        case TipoParametro:         return "parametro";
-        case TipoEscopo:            return "escopo";
-        case TipoDeclaracaoLocais:  return "declaracoesLocais";
-        case TipoListaEscopo:       return "listaEscopo";
-        case TipoDeclaracaoExpressao: return "declaracaoExpressao";
+        case TipoPrograma:              return "programa";
+        case TipoListaDeclaracoes:      return "listaDeclaracoes";
+        case TipoDeclaracao:            return "declaracao";
+        case TipoDeclaracaoVars:        return "declaracaoVariaveis";
+        case TipoEspecifico:            return no->dado.nome;
+        case TipoDeclaracaoFunc:        return "declaracaoFuncao";
+        case TipoID:                    return no->dado.nome;
+        case TipoParametros:            return "parametros";
+        case TipoListaParametros:       return "listaParametros";
+        case TipoParametro:             return "parametro";
+        case TipoEscopo:                return "escopo";
+        case TipoDeclaracaoLocais:      return "declaracoesLocais";
+        case TipoListaEscopo:           return "listaEscopo";
+        case TipoDeclaracaoExpressao:   return "declaracaoExpressao";
         case TipoDeclaracaoSelecao:     return "if";
         case TipoDeclaracaoIteracao:    return "while";
         case TipoDeclaracaoRetorno:     return "return";
         case TipoExpressao:             return "expressao";
-        case TipoVar:               return "variavel";
-        case TipoExpressaoSimples:  return "expressaoSimples";
-        case TipoRelacional:        return no->dado.nome;
-        case TipoExpressaoSoma:     return "expressaoSoma";
-        case TipoSoma:              return no->dado.nome;
-        case TipoTermo:             return "termo";
-        case TipoMult:              return no->dado.nome;
-        case TipoFator:             return "fator";
-        case TipoChamadaFuncao:     return "chamadaFuncao";
-        case TipoArgumentos:        return "argumentos";
-        case TipoListaArgumentos:   return "listaArgumentos";
-        case TipoCorpo:             return "corpo";
-        case TipoNum:               sprintf(buffer, "%d", no->dado.valor); return buffer;
-
-        default:                    return "???";
+        case TipoVar:                   return "variavel";
+        case TipoExpressaoSimples:      return "expressaoSimples";
+        case TipoRelacional:            return no->dado.nome;
+        case TipoExpressaoSoma:         return "expressaoSoma";
+        case TipoSoma:                  return no->dado.nome;
+        case TipoTermo:                 return "termo";
+        case TipoMult:                  return no->dado.nome;
+        case TipoFator:                 return "fator";
+        case TipoChamadaFuncao:         return "chamadaFuncao";
+        case TipoArgumentos:            return "argumentos";
+        case TipoListaArgumentos:       return "listaArgumentos";
+        case TipoCorpo:                 return "corpo";
+        case TipoNum:                   sprintf(buffer, "%d", no->dado.valor); return buffer;
+        default:                        return "???";
     }
 }
 
@@ -649,8 +669,6 @@ void gerarDOT(AST* raiz) {
 
     fprintf(file, "}\n");
     fclose(file);
-
-    //printf("Arquivo arvore.dot gerado com sucesso!\n");
 }
 
 /* GERACAO DE CODIGO INTERMEDIARIO */
@@ -670,32 +688,29 @@ char* criaLabel() {
 
 char* op_to_str(IROp op) {
     switch (op) {
-        case IR_ADD: return "+";
-        case IR_MUL: return "*";
-        case IR_SUB: return "-";
-        case IR_DIV: return "/";
+        case IR_ADD:    return "+";
+        case IR_MUL:    return "*";
+        case IR_SUB:    return "-";
+        case IR_DIV:    return "/";
         case IR_ASSIGN: return "=";
-        case IR_LT: return "<";
-        case IR_GT: return ">";
-        case IR_LE: return "<=";
-        case IR_GE: return ">=";
-        case IR_EQ: return "==";
-        case IR_NEQ: return "!=";
-        case IR_IF: return "if";
-        case IR_GOTO: return "goto";
-        case IR_LABEL: return "label";
-        default: return "???";
+        case IR_LT:     return "<";
+        case IR_GT:     return ">";
+        case IR_LE:     return "<=";
+        case IR_GE:     return ">=";
+        case IR_EQ:     return "==";
+        case IR_NEQ:    return "!=";
+        default:        return "???";
     }
 }
 
 void emit(IROp op, char* arg1, char* arg2, char* result, FILE *file) {
     if (op == IR_IF) {
-        fprintf(file, "if %s goto %s\n", arg1, arg2);
+        fprintf(file, "ifFalse %s goto %s\n", arg1, arg2);
         return;
     }
 
     if (op == IR_GOTO) {
-        fprintf(file, "goto %s\n", arg1);
+        fprintf(file, "goto %s\n", arg1 ? arg1 : "origem");
         return;
     }
 
@@ -719,7 +734,7 @@ char* gerarExpressao(AST* no, FILE *file) {
 
         case TipoID:
         case TipoVar: {
-            return strdup(no->dado.nome);  // Variaveis ou identificadores
+            return strdup(no->dado.nome);
         }
 
         case TipoFator: {
@@ -733,7 +748,7 @@ char* gerarExpressao(AST* no, FILE *file) {
             char *t = criaVariavelTemporaria();
             if (no->filhos[1]->tipo == TipoMult && strcmp(no->filhos[1]->dado.nome, "*") == 0) {
                 emit(IR_MUL, e1, e2, t, file);
-            } else {
+            } else if (no->filhos[1]->tipo == TipoMult && strcmp(no->filhos[1]->dado.nome, "/") == 0) {
                 emit(IR_DIV, e1, e2, t, file);
             }
             return t;
@@ -745,22 +760,28 @@ char* gerarExpressao(AST* no, FILE *file) {
             char *t = criaVariavelTemporaria();
             if (no->filhos[1]->tipo == TipoSoma && strcmp(no->filhos[1]->dado.nome, "+") == 0) {
                 emit(IR_ADD, e1, e2, t, file);
-            } else {
+            } else if (no->filhos[1]->tipo == TipoMult && strcmp(no->filhos[1]->dado.nome, "-") == 0){
                 emit(IR_SUB, e1, e2, t, file);
             }
             return t;
         }
 
         case TipoExpressao: {
-            char* rhs = gerarExpressao(no->filhos[2], file);
-            char* lhs = no->filhos[0]->dado.nome;
-            emit(IR_ASSIGN, rhs, NULL, lhs, file);
-            return lhs;
+            if (no->filhos[2]) {
+                // Assignment: var = expr
+                char* lhs = gerarExpressao(no->filhos[0], file);
+                char* rhs = gerarExpressao(no->filhos[2], file);
+                emit(IR_ASSIGN, rhs, NULL, lhs, file);
+                free(rhs);
+                return lhs;
+            } else {
+                // Simple expression (e.g., function call)
+                return gerarExpressao(no->filhos[0], file);
+            }
         }
 
         case TipoExpressaoSimples: {
             if (no->filhos[1]) {
-                // Relacional
                 char *e1 = gerarExpressao(no->filhos[0], file);
                 char *e2 = gerarExpressao(no->filhos[2], file);
                 char *t = criaVariavelTemporaria();
@@ -781,14 +802,6 @@ char* gerarExpressao(AST* no, FILE *file) {
             } else {
                 return gerarExpressao(no->filhos[0], file);
             }
-        }
-
-        case TipoRelacional: {
-            char *e1 = gerarExpressao(no->filhos[0], file);
-            char *e2 = gerarExpressao(no->filhos[1], file);
-            char *t = criaVariavelTemporaria();
-            emit(IR_LT, e1, e2, t, file);
-            return t;
         }
 
         default:
@@ -823,8 +836,43 @@ void gerarDeclaracao(AST* no, FILE *file) {
             break;
         }
 
+        case TipoDeclaracaoSelecao: {
+            char* elseLabel = (no->filhos[2] == NULL) ? NULL : criaLabel();
+            char* endLabel = criaLabel();
+
+            char* cond = gerarExpressao(no->filhos[0], file);
+            emit(IR_IF, cond, (no->filhos[2] == NULL) ? endLabel : elseLabel, NULL, file);
+            free(cond);
+            gerarDeclaracao(no->filhos[1], file);
+
+            if (no->filhos[2]) {
+                fprintf(file, "%s:\n", elseLabel);
+                gerarDeclaracao(no->filhos[3], file);
+                free(elseLabel);
+            }
+
+            fprintf(file, "%s:\n", endLabel);
+
+            free(endLabel);
+            break;
+        }
+
+        case TipoDeclaracaoFunc: {
+            char* funcLabel = (char*)malloc(32);
+            if (!funcLabel) return;
+            sprintf(funcLabel, no->filhos[1]->dado.nome);
+            char* endFuncLabel = criaLabel();
+
+            fprintf(file, "%s:\n", funcLabel);
+            gerarDeclaracao(no->filhos[3], file);
+            emit(IR_GOTO, NULL, NULL, NULL, file);
+
+            free(funcLabel);
+            free(endFuncLabel);
+            break;
+        }
+
         default:
-            // Para os nós estruturais
             for (int i = 0; i < 5; i++) {
                 if (no->filhos[i]) {
                     gerarDeclaracao(no->filhos[i], file);
@@ -839,7 +887,7 @@ void gerarCodigoIntermediario(AST* raiz) {
     FILE *file;
     file = fopen("build/codigoIntermediario.txt", "w");
     if (file==NULL) {
-        printf("Erro ao abrir arquivo para gerar codigoIntermediario.txt\n");
+        printf("Erro ao abrir arquivo para gerar codigo intermediario\n");
         return;
     }
 

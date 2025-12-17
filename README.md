@@ -29,7 +29,11 @@ make
 ```powershell
 dot -Tpng .\build\arvore.dot -o .\build\arvore.png
 ```
-> Observação: `arvore.png` pode ser substituido
+
+* **[ALTERNATIVA]** Compilar + Exectar + Gerar AST
+```powershell
+make run
+```
 
 *  Limpar arquivos gerados
 ```powershell

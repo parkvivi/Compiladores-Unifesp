@@ -2,10 +2,12 @@ LEX      = flex
 BISON    = bison
 CC       = gcc
 CFLAGS   = -Wall -Wextra
+DOT      = dot
 
 LEX_SRC   = src/lexico/lexico.l
 BISON_SRC = src/sintatico/sintatico.y
 BUILD_DIR = build
+INPUT_FILE = entrada/codigo.txt
 
 ifeq ($(OS),Windows_NT)
     MKDIR = if not exist $(BUILD_DIR) mkdir $(BUILD_DIR)
@@ -43,6 +45,10 @@ all: $(PARSER_BIN)
 
 parser: $(PARSER_BIN)
 
+run: $(PARSER_BIN)
+	$(PARSER_BIN) $(INPUT_FILE)
+	$(DOT) -Tpng $(BUILD_DIR)/arvore.dot -o $(BUILD_DIR)/arvore.png
+
 scanner: CFLAGS += -DLEX_STANDALONE
 scanner: $(SCANNER)
 
@@ -63,4 +69,4 @@ $(BISON_OUTPUT) $(BISON_HEADER): $(BISON_SRC)
 clean:
 	$(RM)
 
-.PHONY: all clean parser scanner
+.PHONY: all clean parser scanner run
