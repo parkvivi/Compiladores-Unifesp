@@ -1219,6 +1219,9 @@ int main(int argc, char **argv){
     /* cria escopo global */
     entrarEscopo(linha_atual);
 
+    declararSimbolo("input", Funcao, TipoInt, TipoInteiro, 0);
+    declararSimbolo("output", Funcao, TipoVoid, TipoInteiro, 0);
+
     yyparse();
 
     /* sai do escopo global e libera memória */
