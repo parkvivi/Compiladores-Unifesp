@@ -1,21 +1,7 @@
-int y;
-int z;
-int x[5];
-
-int oi(int p) {
-    x = 3;
-    if(x==2) {
-        x = 5;
-    } else {
-        x = 2;
-    }
-    return 1;
-}
-
 void main(void) {
-    y = 2;
-    z = y;
-    while(y==2) {
-        z = 2;
+    int x;
+    x = input();
+    while(x < 10) {
+        x = x + 1;
     }
 }
