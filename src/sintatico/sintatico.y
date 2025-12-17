@@ -290,7 +290,6 @@
 %left T_MAIS T_MENOS
 %left T_MULT T_DIV
 
-// %type<...> ...
 %type <no> programa listaDeclaracoes declaracao declaracaoVariaveis tipoEspecificador
 %type <no> declaracaoFuncao parametros listaParametros parametro escopo declaracoesLocais
 %type <no> listaEscopo corpo declaracaoExpressao declaracaoSelecao declaracaoIteracao declaracaoRetorno expressao variavel expressaoSimples relacional expressaoSoma soma termo mult fator chamadaFuncao argumentos listaArgumentos
@@ -480,9 +479,6 @@
                         ;
 
     expressao:  variavel T_ATRIBUICAO expressao {
-
-                                                    // ARRUMAR ATRIBUIR VALOR A VARIAVEIS DEPOIS (tem q percorrer arvore para resultado da expressao?).
-
                                                     $$ = criarNo(TipoExpressao);
                                                     $$->filhos[0] = $1;
                                                     AST* no = criarNo(TipoID); // para igual
